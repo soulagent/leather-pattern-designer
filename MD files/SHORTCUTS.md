@@ -1,5 +1,5 @@
 # Leather Pattern Designer — Keyboard & Mouse Reference
-_v0.7.15_
+_v0.7.16_
 
 ---
 

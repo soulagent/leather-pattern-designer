@@ -86,6 +86,19 @@ smoke tests.
 
 ---
 
+## v0.7.16 — 2026-06-05
+
+### Auto-update: silent check on launch
+The desktop app now quietly checks for updates ~1.5s after launch and only surfaces the prompt when a
+newer version exists — otherwise it starts normally. Reduces friction for users who never click the
+button. One line in init: `if(isDesktop()) setTimeout(()=>checkForUpdates(false), 1500)`. Reuses the
+existing `checkForUpdates(false)` (manual=false), which already stays silent when up to date, offline,
+or in a plain browser (no `__TAURI__`), and shows the themed "Update Available" confirm only when there
+is one. The Help ▸ Check for Updates menu (manual=true) still gives the explicit "you're on the latest
+version" feedback. Build smoke +1 assert (49/49); HTML smoke 349/349 (inert without `__TAURI__`).
+
+---
+
 ## v0.7.15 — 2026-06-05
 
 ### Auto-update live verification release
