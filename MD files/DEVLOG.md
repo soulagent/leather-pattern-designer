@@ -27,6 +27,53 @@ smoke tests.
   top-level; group-aware reorder). ✅ **Artboard geometry into undo** DONE v0.7.3. ✅ **Export all
   artboards** DONE v0.7.4. _All artboards follow-ups complete._
 
+### Newly logged 2026-06-05 (not started)
+- **PNG export** — alongside SVG. Rasterise the same per-artboard SVG (`svgStringFor(ab)`) at a chosen
+  DPI: load the SVG string into an `Image`, draw onto an offscreen `<canvas>` sized `mm→px` at the
+  target DPI (e.g. 300), `canvas.toBlob('image/png')`. Reuse the export-all / active-only flow and the
+  desktop native-save path just added (`exportSVGNative` → a sibling `exportPNGNative`; `save_file`
+  can't take binary as a JSON string, so PNG needs a **new Rust `save_file_bytes(path, Vec<u8>)`**
+  command — or base64 over the existing string command). Add a DPI control. _Risk: none structurally;
+  watch SVG-feature fidelity in the canvas rasteriser (fonts, dashes) — our export SVG is simple so
+  low risk._
+- ✅ **Shared UI-language skill** — DONE 2026-06-05. Captured the app's visual/interaction conventions
+  (dark/light palette + shared red accent, Figma-style `.p-grp`/`.p-pair`/`.p-field` property rows,
+  french-stitch border `frenchBorder`, themed `confirmModal`/`alertModal` over native dialogs, toolbar
+  grouping, status-bar flash pattern, mm-true rendering rules) as a reusable skill at
+  `.claude/skills/ui-language/SKILL.md` (`leather-ui-language`) so this app and the companion tool
+  share one UI language. Stack-independent design tokens + interaction rules (survives the C++
+  migration), grounded in the live `index.html` values. _Open: user may fine-tune some elements, then
+  re-sync the skill._
+
+### UX / accessibility backlog (logged 2026-06-05 from the UX + a11y review)
+Colour contrast fixed in v0.7.19; the items below were addressed in v0.7.20 except where noted:
+- ✅ **Keyboard-accessible, click-to-open menus** — DONE v0.7.20 (`initMenubar`).
+- ⏸️ **Promote clickable `<div>`s to real controls (app-wide).** Not selected for v0.7.20; the *menu*
+  actions + tab close were made keyboard-activatable, but the other `onclick` divs (e.g. layer rows)
+  still aren't focusable/announced. Future.
+- ✅ **Visible focus ring** — DONE v0.7.20 (`:focus-visible`).
+- ✅ **ARIA labels** — DONE v0.7.20 (menubar/toolbar roles, icon-button `aria-label`, `aria-pressed`).
+- ⏸️ **`prefers-reduced-motion`.** Intentionally skipped (low priority, per the user). Future.
+- ✅ **Surface PNG DPI at export** — DONE v0.7.20 (Export PNG DPI submenu).
+- ✅ **3-way export-all dialog** — DONE v0.7.20 (`confirmModal` `opts.alt`; Esc=Cancel).
+- ✅ **System theme default** — DONE v0.7.20 (`prefers-color-scheme` on first run).
+- _(Optional future generalization: migrate the remaining surface/border literals — `#12122a`,
+  `#2a2a4a`, etc. — onto the new `--panel`/`--border` tokens; only text + accent are tokenised so far.)_
+
+### Companion app — 3D leather-goods preview/visualizer (vision, not started)
+A **second, parallel product** the user has wanted for a long time: take a finished `.lpd` template and
+preview the assembled real-world product. High-level goals: (1) **3D render** of the assembled item;
+(2) **full camera control + lighting + texturing** — choose leather type/colour and stitch colour;
+(3) generate **step-by-step build instructions** (Lego-manual style); (4) **validate** that the flat
+templates will actually assemble correctly; (5) **bidirectional parametric sync** — change height/width
+in 3D and have it update the `.lpd` pattern, and vice-versa. Full game plan, feasibility, risks, and
+phasing live in the [[companion-3d-app]] memory. **Crux:** today's `.lpd` is purely 2D (cut shapes +
+stitch lines) with **no assembly metadata** — which edges join, fold lines, material thickness — so
+goals 3/4/5 are gated on first designing a seam/assembly data model (likely a `.lpd` extension or a
+sibling assembly file, plus seam-tagging UI in *this* app). Goals 1/2 (render/camera/material) are low
+risk; the 2D→3D fold is the hard, research-adjacent part — phase it, start with a flat-panel 3D viewer
+MVP and a parametric catalogue of common goods before attempting general free-form folding.
+
 ### Layers panel follow-ups (built v0.3.30 — drag/▲▼ reorder + per-shape fill opacity)
 - ✅ **Per-layer visibility toggle (hide/show) and lock** — DONE v0.7.5 (eye + lock icons per row).
 
@@ -83,6 +130,110 @@ smoke tests.
 
 ### Known accepted rough edges
 - Very acute "sliver" corners (margin wider than the local feature width) — the inward offset is geometrically degenerate there; the min-gap pass prevents pile-ups but the geometry stays rough.
+
+---
+
+## v0.7.20 — 2026-06-05  (build maple-osprey-V8)
+
+### Accessibility + UX pass (from the review backlog)
+Six items off the UX/a11y backlog (reduced-motion intentionally skipped as low-priority):
+- **Visible focus ring.** Global `:focus-visible{outline:2px solid var(--accent-bright);outline-offset:2px}`
+  — keyboard focus only (mouse clicks get none); inputs keep their accent-border focus (higher
+  specificity, no double ring).
+- **System theme default.** `restoreTheme()` follows `prefers-color-scheme` on first run when no theme
+  is stored; an explicit toggle still persists and wins.
+- **Click-to-open, stay-open menus + keyboard nav** (`initMenubar`). Menubar dropdowns now open on
+  **click** via a JS `.open` class (CSS `.m-item.open .m-drop`, hover-open removed) so an accidental
+  mouse-out no longer closes them; hovering a sibling switches while open; Esc / outside-click closes.
+  Command rows close on click, toggle/checkmark rows stay open. Full keyboard: Enter/Space/↓ open,
+  ↑/↓ within, ←/→ between menus, Enter activates, Esc closes.
+- **ARIA.** `role=menubar/menu/menuitem` + `aria-haspopup`/`aria-expanded`; `role=toolbar`; icon
+  buttons get `aria-label` mirrored from `data-tip` (tooltips were CSS-only); tool buttons get
+  `aria-pressed` (synced in `applyToolChrome`); tab close "×" is now a focusable `role=button` with
+  label + Enter/Space; new-tab button labeled. Wired by `initAccessibility()` at launch.
+- **PNG DPI surfaced at export.** File ▸ Export PNG is now a 150/300/600 DPI group (mirrors Page/Snap
+  Size); `exportPNG(dpi)` remembers the choice (`S.pngDPI` + localStorage, in sync with Settings).
+- **3-way export-all dialog.** `confirmModal` gained an optional middle button (`opts.alt`): resolves
+  OK→true, alt→'alt', Cancel/Esc/backdrop→false (back-compatible). SVG + PNG multi-artboard export now
+  offer **All artboards / Active only / Cancel** — Esc no longer silently exports the active artboard.
+
+No save-format change; HTML smoke 350/350. Packaged as **maple-osprey-V8**.
+
+---
+
+## v0.7.19 — 2026-06-05
+
+### Design tokens + colour-contrast fixes (WCAG AA)
+Introduced a CSS custom-property token system (`:root` = dark default; `body.light` re-points the
+tokens) as the single source of truth for the palette: surfaces (`--bg/--canvas/--panel/--raised/
+--dialog/--hover/--border/--border-soft`), **text tiers** (`--text/--text-2/--text-muted/--text-faint/
+--text-heading`), accent (`--accent/--accent-bright/--accent-hover/--accent-soft`), and semantic/canvas
+(`--success/--drop/--shape/--stitch`). All text roles across menubar, props panel, layers, status bar,
+tabs, toolbar, settings modal, home, help and quick-start now use the text-tier tokens, so a single
+light token override fixes every role in both themes — and ~25 redundant per-selector `body.light`
+colour overrides were removed. **Contrast:** every text tier now meets AA (≥4.5:1) on its worst-case
+surface in both themes (dark 5.0–9.5:1; light 5.3–8.3:1), up from failures as low as 1.86:1 (light
+keyboard hints) and 2.2–2.5:1 (dark notes/hints). Two judgment calls included: button **hover** fills
+now use `--accent-hover` `#cf3a28` (white text 4.9:1, was 3.8:1 on `#e74c3c`); the **stitch** colour on
+the light canvas darkens to `#b5640f` (4.2:1, was 2.8:1) via the `--stitch` token — **print is
+untouched** (it forces black via `@media print !important`). No JS/logic change; HTML smoke 350/350.
+Full before/after audit in `STYLE_GUIDE.md` §8. Structural a11y + UX findings logged to the backlog
+above (keyboard menus, focusable controls, focus rings, ARIA, reduced-motion).
+
+---
+
+## 2026-06-05 — UX + accessibility review (docs only, no app change)
+
+Ran a UX flow check + WCAG contrast audit and wrote **`STYLE_GUIDE.md`** (root) — human-facing
+palette/type/spacing/components reference plus the full contrast audit (§8) and structural a11y notes
+(§9). No version bump (nothing in `index.html` changed). Key contrast failures found (measured sRGB):
+dark `#555` notes/`.kb` hints (2.2–2.5:1), `#666` status bar (3.2), `#777` muted labels (4.1),
+`#6c6c92` group heading (3.7); and a **systematic light-theme** problem — the secondary greys
+(`#888`/`#999`/`#aaa`, group heading) were carried over from dark and fail on the light chrome
+(1.9–2.8:1), plus stitch orange on the light canvas dips to 2.8 (<3:1). Suggested passing replacements
+are tabulated in the style guide. Structural: menus are hover-only (no keyboard open), ~21 clickable
+`<div>`s aren't focusable, `outline:none` removes some focus rings, almost no ARIA, no
+`prefers-reduced-motion`. _Fixes not yet applied — awaiting go-ahead._
+
+---
+
+## v0.7.18 — 2026-06-05
+
+### PNG export (alongside SVG)
+New **File ▸ Export PNG**. Reuses the SVG export pipeline: same all-artboards / active-only flow,
+same per-artboard region framing — then rasterises each region to PNG. `svgToPngBlob(svg,wMM,hMM,dpi)`
+loads the self-contained export SVG through a blob URL into an `<Image>`, draws it onto a 2D canvas
+sized `mm→px = dpi/25.4` over a white background (matches print; PNG would otherwise be transparent),
+and `toBlob('image/png')`. `buildSVGExports` now also returns `stem` + `w`/`h` per entry so the
+rasteriser can size the canvas (SVG/name fields unchanged; smoke unaffected). **DPI is a setting** —
+Settings ▸ Export ▸ PNG resolution (150 draft / 300 print / 600 high, default 300), `S.pngDPI`,
+persisted to `localStorage['lpat-png-dpi']` (a UI pref — *not* in the `.lpd` schema, no version bump).
+Desktop routes through `exportPNGNative` (folder picker for "all", native Save dialog for one), which
+writes **binary** via a new Rust command **`save_file_bytes(path, Vec<u8>)`** — PNG can't ride the
+JSON-string `save_file`. Browser uses FS-Access `saveBlob` / `downloadBlob`. Both degrade to a download
+if the dialog plugin is absent. Build smoke +6 asserts (`save_file_bytes` define/register/invoke,
+`exportPNG`/`exportPNGNative`/`svgToPngBlob` present, exportPNG desktop branch) → 57/57; HTML smoke +1
+(export entries carry stem/w/h) → 350/350. _Desktop binary write is build-only until the next `/build`
+(the new Rust command ships then); browser PNG export works now. Note: bytes are passed as a number
+array — fine for typical pattern sizes; revisit with raw `ArrayBuffer` IPC if large high-DPI exports
+feel slow._
+
+---
+
+## v0.7.17 — 2026-06-05
+
+### Desktop SVG export through the native save dialog
+SVG export now routes through Tauri on the desktop build instead of the browser download/FS-Access
+path — the last file-IO operation that still bypassed native IO. New helper `exportSVGNative(out, all)`:
+a **single** artboard opens a native Save dialog (`.svg` filter) and writes via the existing generic
+`save_file` Rust command (the same fs wrapper `.lpd` saves use — no new Rust command, no Cargo/conf
+change beyond the version bump); **all artboards** opens a directory picker and writes each file into
+the chosen folder (`dir+'/'+name`; Windows `std::fs` accepts `/`). Both degrade to a browser download
+if the dialog plugin global is absent, so export always produces a file. `exportSVG` gains one
+desktop branch (`if(isDesktop()){ await exportSVGNative(out, all); return; }`) right after it builds
+the export set and restores the live view; the browser `saveBlob`/`downloadBlob` paths are untouched.
+Build smoke +2 asserts (`exportSVGNative` present + `exportSVG` desktop branch) → 51/51; HTML smoke
+349/349 (the export branch is inert without `__TAURI__`). No save-format change.
 
 ---
 

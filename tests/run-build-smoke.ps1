@@ -62,7 +62,7 @@ $dlgIdx = $rs.IndexOf('tauri_plugin_dialog::init')
 Assert 'main.rs: single-instance registered first' ($siIdx -ge 0 -and ($dlgIdx -lt 0 -or $siIdx -lt $dlgIdx)) 'single-instance should be the first .plugin()'
 
 # ---- 3. command contract: defined + registered (Rust) AND invoked (JS)
-$commands = @('take_launch_file', 'read_file', 'save_file')
+$commands = @('take_launch_file', 'read_file', 'save_file', 'save_file_bytes')
 foreach ($c in $commands) {
   Assert "main.rs: defines fn $c"      ($rs -match "fn\s+$c")                     'no #[tauri::command] fn'
   Assert "main.rs: registers $c"       ($rs -match "generate_handler!\[[^\]]*\b$c\b") 'missing from generate_handler!'
@@ -80,9 +80,15 @@ $exts = @(); if ($cf.bundle.fileAssociations) { $exts = $cf.bundle.fileAssociati
 Assert 'tauri.conf: .lpd file association' ($exts -contains 'lpd') 'no .lpd association registered'
 
 # ---- 6. frontend wiring present ------------------------------------
-foreach ($fn in @('isDesktop', 'saveFileNative', 'triggerLoadNative', 'onSecondInstanceFile', 'listenForSecondInstance')) {
+foreach ($fn in @('isDesktop', 'saveFileNative', 'triggerLoadNative', 'onSecondInstanceFile', 'listenForSecondInstance', 'exportSVGNative', 'exportPNG', 'exportPNGNative', 'svgToPngBlob', 'initMenubar', 'initAccessibility')) {
   Assert "index.html: function $fn" ($html -match "function\s+$fn\b") 'helper not defined'
 }
+Assert 'index.html: a11y init wired'        ($html -match 'initAccessibility\(\);')        'initAccessibility not called in init'
+Assert 'index.html: click-to-open menus'    ($html -match '\.m-item\.open \.m-drop')       'menus still hover-only'
+Assert 'index.html: confirm-alt button'     ($html -match 'id="confirm-alt"')              '3-way dialog button missing'
+Assert 'index.html: PNG DPI submenu'        ($html -match 'onclick="exportPNG\(300\)"')    'Export PNG DPI choices missing'
+Assert 'index.html: exportSVG desktop branch' ($html -match 'if\(isDesktop\(\)\)\{ await exportSVGNative\(') 'SVG export not routed through native save'
+Assert 'index.html: exportPNG desktop branch' ($html -match 'if\(isDesktop\(\)\)\{ await exportPNGNative\(') 'PNG export not routed through native save'
 Assert 'index.html: S.nativePath field'        ($html -match 'nativePath:')              'state field missing'
 Assert 'index.html: saveFile desktop branch'   ($html -match 'if\(isDesktop\(\)\)\{ await saveFileNative\(false\)') 'saveFile not routed'
 Assert 'index.html: saveFileAs desktop branch' ($html -match 'if\(isDesktop\(\)\)\{ await saveFileNative\(true\)')  'saveFileAs not routed'

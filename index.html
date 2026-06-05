@@ -6,7 +6,27 @@
 <title>Leather Pattern Designer</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+/* ══ DESIGN TOKENS ══ single source of truth for the palette. Dark = default (:root); light
+   overrides only the tokens (see body.light block). Text tiers are tuned for WCAG AA (>=4.5:1) on
+   their worst-case surface in BOTH themes — change a colour HERE, not at the call site. The red
+   accent is shared across themes by design. See STYLE_GUIDE.md (contrast audit) before editing. */
+:root{
+  /* surfaces */
+  --bg:#1a1a2e; --canvas:#0d0d1f; --panel:#12122a; --raised:#1e1e38; --dialog:#16162c;
+  --hover:#2a2a4a; --border:#2a2a4a; --border-soft:#242444;
+  /* text tiers */
+  --text:#eee; --text-2:#b9b9c9; --text-muted:#9a9ab2; --text-faint:#8d8da6; --text-heading:#8a8ab0;
+  /* accent (shared both themes) — bright = borders/strokes/focus; hover = fills under white text */
+  --accent:#c0392b; --accent-bright:#e74c3c; --accent-hover:#cf3a28; --accent-soft:#e0506a;
+  /* semantic + canvas */
+  --success:#44aa88; --drop:#4dd2ff; --shape:#3a7bd5; --stitch:#e67e22;
+}
 body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#eee;display:flex;flex-direction:column;height:100vh;overflow:hidden;user-select:none}
+/* Visible keyboard focus ring — only for keyboard focus (:focus-visible), never on mouse click.
+   Text inputs keep their own accent-border :focus style (higher specificity wins, so no double ring);
+   this covers buttons, menu items, list rows and other focusables. Modern browsers shape the outline
+   to the element's border-radius automatically. */
+:focus-visible{outline:2px solid var(--accent-bright);outline-offset:2px}
 
 /* ── MENUBAR ── */
 #menubar{background:#12122a;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;height:30px;padding:0 6px;gap:2px;flex-shrink:0}
@@ -15,19 +35,19 @@ body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#eee;display:flex
 #tabbar{background:#0d0d1f;border-bottom:1px solid #2a2a4a;display:flex;align-items:stretch;height:30px;padding:0 4px;gap:3px;flex-shrink:0;overflow-x:auto;overflow-y:hidden}
 #tabbar::-webkit-scrollbar{height:4px}
 #tabbar::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:2px}
-.tab{display:flex;align-items:center;gap:6px;max-width:200px;padding:0 6px 0 10px;margin-top:4px;border:1px solid #2a2a4a;border-bottom:none;border-radius:6px 6px 0 0;background:#12122a;color:#aaa;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.tab{display:flex;align-items:center;gap:6px;max-width:200px;padding:0 6px 0 10px;margin-top:4px;border:1px solid #2a2a4a;border-bottom:none;border-radius:6px 6px 0 0;background:#12122a;color:var(--text-2);font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .tab:hover{background:#1a1a36;color:#ddd}
 .tab.active{background:#1a1a2e;color:#fff;border-color:#3a3a5a}
 .tab-name{overflow:hidden;text-overflow:ellipsis;max-width:150px}
 .tab-dot{color:#e0506a;font-size:14px;line-height:1;margin-left:-2px}        /* unsaved marker */
-.tab-x{width:16px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:3px;font-size:13px;color:#888;flex-shrink:0}
+.tab-x{width:16px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:3px;font-size:13px;color:var(--text-2);flex-shrink:0}
 .tab-x:hover{background:#3a3a5a;color:#fff}
-.tab-new{display:flex;align-items:center;justify-content:center;width:26px;margin-top:4px;border:none;background:none;color:#888;font-size:18px;cursor:pointer;border-radius:5px;flex-shrink:0}
+.tab-new{display:flex;align-items:center;justify-content:center;width:26px;margin-top:4px;border:none;background:none;color:var(--text-2);font-size:18px;cursor:pointer;border-radius:5px;flex-shrink:0}
 .tab-new:hover{background:#1a1a36;color:#fff}
 .m-item{position:relative;padding:4px 10px;cursor:pointer;border-radius:4px;font-size:13px;white-space:nowrap}
-.m-item:hover,.m-item:focus-within{background:#2a2a4a}
+.m-item:hover,.m-item:focus-within,.m-item.open{background:#2a2a4a}
 .m-drop{display:none;position:absolute;top:100%;left:0;background:#1e1e38;border:1px solid #2a2a4a;border-radius:5px;min-width:200px;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.55);padding:3px 0}
-.m-item:hover .m-drop{display:block}
+.m-item.open .m-drop{display:block}/* click-to-open: dropdown shows only when JS adds .open (no hover-close) */
 .m-act{padding:6px 14px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:14px;text-align:left}
 .m-act:hover{background:#2a2a4a}
 /* text sits first (left); shortcut + checkmark are pushed to the right edge.
@@ -35,7 +55,7 @@ body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#eee;display:flex
    so checkmarks line up on the far right and shortcuts just inside them. */
 .m-act>.kb,.m-act>.m-chk{margin-left:auto}
 .m-act>.kb~.m-chk{margin-left:14px}
-.m-act .kb{color:#555;font-size:11px;flex-shrink:0}
+.m-act .kb{color:var(--text-faint);font-size:11px;flex-shrink:0}
 .m-chk{display:inline-block;width:14px;text-align:center;color:#e74c3c;flex-shrink:0}
 .m-nest{position:relative;padding:6px 14px;cursor:pointer;font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:20px}
 .m-nest:hover{background:#2a2a4a}
@@ -43,8 +63,8 @@ body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#eee;display:flex
 .m-nest>.m-drop{display:none;position:absolute;left:100%;top:-3px;min-width:120px}
 .m-nest:hover>.m-drop{display:block}
 .m-sep{height:1px;background:#2a2a4a;margin:3px 6px}
-.m-grp-lbl{padding:3px 14px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#555;cursor:default}
-#app-title{margin-left:auto;font-size:11px;color:#444;padding-right:10px}
+.m-grp-lbl{padding:3px 14px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-faint);cursor:default}
+#app-title{margin-left:auto;font-size:11px;color:var(--text-faint);padding-right:10px}
 /* standalone light/dark toggle, top-right of the menubar */
 #theme-toggle{display:flex;align-items:center;gap:8px;height:100%;padding:0 10px 0 4px;cursor:pointer;font-size:11px;color:#9a9ac0;user-select:none;outline:none}
 #theme-toggle:hover,#theme-toggle:focus-visible{color:#dcdcf0}
@@ -59,7 +79,7 @@ body.light .theme-knob{transform:translateX(18px);background:#c0392b}
 
 /* ── TOOLBAR ── */
 #toolbar{background:#12122a;border-right:1px solid #2a2a4a;width:46px;display:flex;flex-direction:column;align-items:center;padding:6px 0;gap:3px;flex-shrink:0}
-.t-btn{width:34px;height:34px;border-radius:6px;border:1px solid transparent;background:transparent;color:#aaa;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:background .12s,color .12s;position:relative}
+.t-btn{width:34px;height:34px;border-radius:6px;border:1px solid transparent;background:transparent;color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:background .12s,color .12s;position:relative}
 .t-btn:hover{background:#2a2a4a;color:#fff}
 .t-btn.active{background:#c0392b;border-color:#e74c3c;color:#fff}
 .t-sep{width:60%;height:1px;background:#2a2a4a;margin:2px 0}
@@ -79,31 +99,31 @@ body.light .theme-knob{transform:translateX(18px);background:#c0392b}
 #props-resize:hover,#props-resize.dragging{background:#2a2a4a}
 body.col-resizing{cursor:col-resize;user-select:none}
 .p-sec{border-bottom:1px solid #1e1e38}
-.p-hd{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#777;padding:9px 11px 5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none}
+.p-hd{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);padding:9px 11px 5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none}
 .p-hd:hover{color:#ccc}
-.p-tog{font-size:11px;color:#555;line-height:1;transition:transform .15s}
+.p-tog{font-size:11px;color:var(--text-faint);line-height:1;transition:transform .15s}
 .p-hd.closed .p-tog{transform:rotate(-90deg)}
 .p-sec-body{padding:0 11px 10px;overflow:hidden;max-height:800px;transition:max-height .2s ease,padding .2s ease}
 .p-sec-body.closed{max-height:0;padding-top:0;padding-bottom:0}
 .p-dim-sum{font-size:13px;color:#aad;font-weight:600;margin-bottom:8px;padding:4px 6px;background:#1a1a30;border-radius:4px;text-align:center}
 /* subcategory heading inside a properties section (Figma/Illustrator-style grouping) */
-.p-grp{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#6c6c92;font-weight:700;margin:17px 0 8px;padding-bottom:4px;border-bottom:1px solid #242444}
+.p-grp{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-heading);font-weight:700;margin:17px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border-soft)}
 .p-grp:first-child{margin-top:2px}
 /* two fields side by side (X|Y, W|H) */
 .p-pair{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:5px}
 .p-field{display:flex;align-items:center;gap:5px}
-.p-fl{font-size:11px;color:#777;flex-shrink:0;width:13px;text-align:center}
+.p-fl{font-size:11px;color:var(--text-muted);flex-shrink:0;width:13px;text-align:center}
 .p-row{display:flex;align-items:center;gap:7px;margin-bottom:5px}
-.p-lbl{font-size:11px;color:#888;width:52px;flex-shrink:0}
+.p-lbl{font-size:11px;color:var(--text-2);width:52px;flex-shrink:0}
 .p-inp{background:#1e1e38;border:1px solid #2a2a4a;color:#eee;padding:3px 6px;border-radius:4px;font-size:12px;flex:1;min-width:0}
 .p-inp:focus{outline:none;border-color:#e74c3c}
-.p-inp[readonly]{color:#666;cursor:default}
+.p-inp[readonly]{color:var(--text-muted);cursor:default}
 .p-sel{background:#1e1e38;border:1px solid #2a2a4a;color:#eee;padding:3px 5px;border-radius:4px;font-size:12px;flex:1;cursor:pointer}
-.p-ck-row{display:flex;align-items:center;gap:7px;font-size:11px;color:#aaa;margin-bottom:5px;cursor:pointer}
+.p-ck-row{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text-2);margin-bottom:5px;cursor:pointer}
 .p-ck-row input{accent-color:#e74c3c;cursor:pointer}
-.p-note{font-size:10px;color:#555;margin-top:4px;line-height:1.4}
+.p-note{font-size:10px;color:var(--text-faint);margin-top:4px;line-height:1.4}
 .p-btn{padding:3px 10px;border-radius:4px;border:1px solid #2a2a4a;background:#1e1e38;color:#ccc;font-size:11px;cursor:pointer;transition:background .12s}
-.p-btn:hover{background:#e74c3c;border-color:#e74c3c;color:#fff}
+.p-btn:hover{background:var(--accent-hover);border-color:var(--accent-hover);color:#fff}
 .p-btn.on{background:#c0392b;border-color:#e74c3c;color:#fff}
 .align-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;width:96px;margin-top:6px}
 .align-cell{height:26px;border:1px solid #2a2a4a;background:#1e1e38;border-radius:3px;cursor:pointer;display:flex;flex-direction:column;gap:2px;padding:4px;box-sizing:border-box;transition:background .12s}
@@ -111,7 +131,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .align-cell.on{background:#3a1a24;border-color:#e74c3c}
 .align-cell i{display:block;height:2px;border-radius:1px;background:#777}
 .align-cell.on i{background:#ff8a8a}
-#no-sel-msg{color:#555;font-size:12px;text-align:center;padding:12px 0 4px}
+#no-sel-msg{color:var(--text-faint);font-size:12px;text-align:center;padding:12px 0 4px}
 .swatches{display:flex;flex-wrap:wrap;gap:5px;flex:1}
 .sw{width:18px;height:18px;border-radius:4px;cursor:pointer;border:2px solid transparent;box-shadow:0 0 0 1px #00000055 inset}
 .sw:hover{transform:scale(1.12)}
@@ -120,7 +140,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
 #layers-list{display:flex;flex-direction:column;gap:2px;max-height:300px;overflow-y:auto}
 /* artboard group header (shapes nest under it when there are multiple artboards / unplaced shapes) */
 .lay-group{display:flex;align-items:center;gap:5px;padding:4px 4px;margin-top:4px;border-radius:4px;cursor:pointer;
-  font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#8888a8;font-weight:700;user-select:none}
+  font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-heading);font-weight:700;user-select:none}
 .lay-group:first-child{margin-top:0}
 .lay-group:hover{background:#1a1a34;color:#aab}
 .lay-group .lay-gcaret{flex-shrink:0;font-size:9px;width:9px;transition:transform .12s}
@@ -134,27 +154,27 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .lay-row.sel{background:#23234a;border-color:#3a3a6a}
 .lay-row.drop-before{box-shadow:inset 0 2px 0 #4dd2ff}
 .lay-row.drop-after{box-shadow:inset 0 -2px 0 #4dd2ff}
-.lay-grip{flex-shrink:0;color:#555;font-size:11px;line-height:1;cursor:grab;user-select:none}
-.lay-grip:hover{color:#aaa}
+.lay-grip{flex-shrink:0;color:var(--text-faint);font-size:11px;line-height:1;cursor:grab;user-select:none}
+.lay-grip:hover{color:var(--text)}
 .lay-grip:active{cursor:grabbing}
 .lay-sw{width:11px;height:11px;border-radius:3px;flex-shrink:0;box-shadow:0 0 0 1px #00000055 inset}
-.lay-name{flex:1;font-size:11px;color:#bbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lay-name{flex:1;font-size:11px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lay-row.sel .lay-name{color:#fff}
 .lay-btns{display:flex;flex-direction:column;gap:0;flex-shrink:0}
 .lay-arr{width:15px;height:11px;line-height:9px;padding:0;font-size:8px;border:1px solid #2a2a4a;background:#1e1e38;color:#aaa;cursor:pointer;border-radius:2px}
 .lay-arr:hover:not(:disabled){background:#3a3a6a;color:#fff}
 .lay-arr:disabled{opacity:.3;cursor:default}
-.lay-tog{display:flex;align-items:center;justify-content:center;width:17px;height:17px;padding:0;flex-shrink:0;border:1px solid transparent;background:none;color:#666;cursor:pointer;border-radius:3px}
+.lay-tog{display:flex;align-items:center;justify-content:center;width:17px;height:17px;padding:0;flex-shrink:0;border:1px solid transparent;background:none;color:var(--text-muted);cursor:pointer;border-radius:3px}
 .lay-tog:hover{background:#23234a;color:#ddd}
 .lay-tog.on{color:#e0e0ff}
 .lay-tog.lock-on{color:#e07a3c}
 .lay-tog svg{width:13px;height:13px;display:block}
 .lay-row.lay-hidden .lay-sw,.lay-row.lay-hidden .lay-name{opacity:.4}
 .lay-op{width:48px;flex-shrink:0;cursor:pointer}
-.lay-op-v{font-size:9px;color:#777;width:26px;text-align:right;flex-shrink:0}
+.lay-op-v{font-size:9px;color:var(--text-muted);width:26px;text-align:right;flex-shrink:0}
 
 /* ── STATUSBAR ── */
-#status{background:#12122a;border-top:1px solid #2a2a4a;height:22px;display:flex;align-items:center;padding:0 10px;gap:16px;font-size:10px;color:#666;flex-shrink:0}
+#status{background:#12122a;border-top:1px solid #2a2a4a;height:22px;display:flex;align-items:center;padding:0 10px;gap:16px;font-size:10px;color:var(--text-muted);flex-shrink:0}
 #st-autosave{color:#4a8}
 
 /* ── MODAL ── */
@@ -163,24 +183,24 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .modal{background:#1e1e38;border:1px solid #2a2a4a;border-radius:8px;padding:20px;min-width:320px;max-width:90vw;max-height:90vh;overflow-y:auto}
 .modal h3{margin-bottom:16px;font-size:15px}
 .m-row{display:flex;align-items:center;gap:10px;margin-bottom:11px}
-.m-lbl{width:180px;font-size:12px;color:#aaa;flex-shrink:0}
+.m-lbl{width:180px;font-size:12px;color:var(--text-2);flex-shrink:0}
 .m-inp{background:#12122a;border:1px solid #2a2a4a;color:#eee;padding:5px 8px;border-radius:4px;font-size:12px;flex:1}
 .m-inp:focus{outline:none;border-color:#e74c3c}
-.m-note{font-size:10px;color:#555;padding:0 0 10px;line-height:1.5}
-.m-section-hd{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#555;margin:10px 0 8px;border-top:1px solid #2a2a4a;padding-top:10px}
+.m-note{font-size:10px;color:var(--text-faint);padding:0 0 10px;line-height:1.5}
+.m-section-hd{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-heading);margin:10px 0 8px;border-top:1px solid #2a2a4a;padding-top:10px}
 .modal-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 .btn-ok{padding:6px 16px;background:#c0392b;border:none;border-radius:4px;color:#fff;font-size:12px;cursor:pointer}
-.btn-ok:hover{background:#e74c3c}
+.btn-ok:hover{background:var(--accent-hover)}
 .btn-cancel{padding:6px 14px;background:#1a1a2e;border:1px solid #2a2a4a;border-radius:4px;color:#ccc;font-size:12px;cursor:pointer}
 .btn-cancel:hover{background:#2a2a4a}
 
 /* ── SVG classes ── */
 .sh-fill{fill:rgba(255,255,255,.04)}
-.sh-stroke{fill:none;stroke:#3a7bd5;stroke-width:0.4}
+.sh-stroke{fill:none;stroke:var(--shape);stroke-width:0.4}
 .sh-sel .sh-fill{fill:rgba(231,76,60,.07)}
 .sh-sel .sh-stroke{stroke:#e74c3c}
-.st-line{fill:none;stroke:#e67e22;stroke-width:0.25;stroke-dasharray:1 0.5}
-.st-dot{fill:none;stroke:#e67e22;stroke-width:0.13}/* holes drawn as outlines, not filled */
+.st-line{fill:none;stroke:var(--stitch);stroke-width:0.25;stroke-dasharray:1 0.5}
+.st-dot{fill:none;stroke:var(--stitch);stroke-width:0.13}/* holes drawn as outlines, not filled */
 .st-dot-hl{fill:none;stroke:#00e0c6;stroke-width:0.17}/* forced corner hole — contrasting */
 .st-hl-g{cursor:help}
 /* on-shape labels drawn as OUTLINE on screen (hollow, matching the stitch-hole rings); print
@@ -225,7 +245,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .home-card{position:relative;z-index:1;max-width:560px;width:88%;text-align:center;padding:10px}
 .home-logo{font-size:30px;margin-bottom:8px;letter-spacing:.3em}
 .home-card h1{font-size:26px;font-weight:700;color:#f2f2f7;margin:0 0 8px;letter-spacing:.01em}
-.home-sub{font-size:13px;color:#9a9ab0;margin:0 0 28px}
+.home-sub{font-size:13px;color:var(--text-muted);margin:0 0 28px}
 .home-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:30px}
 .home-btn{display:flex;align-items:center;gap:9px;padding:13px 22px;border-radius:9px;border:1px solid #2f2f52;
   background:#1c1c38;color:#dcdcf0;font-size:14px;font-weight:600;cursor:pointer;transition:transform .1s,background .12s,border-color .12s}
@@ -234,21 +254,21 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .home-btn-primary:hover{background:#d6422f}
 .home-btn-ic{font-size:17px;line-height:1}
 .home-recents{max-width:430px;margin:0 auto;text-align:left}
-.home-recents-h{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#6c6c92;font-weight:700;margin-bottom:9px;padding-left:2px}
+.home-recents-h{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-heading);font-weight:700;margin-bottom:9px;padding-left:2px}
 .home-recent{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;margin-bottom:6px;border-radius:7px;
   border:1px solid #232342;background:#16162c;color:#cfcfe4;font-size:13px;cursor:pointer;transition:background .12s,border-color .12s;text-align:left}
 .home-recent:hover{background:#22223f;border-color:#33335a}
 .home-recent-ic{color:#e67e22;flex-shrink:0}
 .home-recent-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.home-recent-time{font-size:11px;color:#76769a;flex-shrink:0}
+.home-recent-time{font-size:11px;color:var(--text-faint);flex-shrink:0}
 .home-recover{border-color:#3a5a2e;background:#16241a}
 .home-recover:hover{background:#1c3022;border-color:#4a7a3a}
 .home-recover .home-recent-ic{color:#27ae60}
 /* version stamp — bottom-right of the welcome screen. Dev (working) version + build tag. */
 #home-version{position:absolute;right:16px;bottom:13px;z-index:2;display:flex;flex-direction:column;align-items:flex-end;gap:2px;
   font-family:monospace;font-size:11px;line-height:1.3;color:#54546e;pointer-events:none;text-align:right}
-#home-ver-build{color:#6c6c92;font-weight:600}
-body.light #home-version{color:#9a9ab0}
+#home-ver-build{color:var(--text-heading);font-weight:600}
+body.light #home-version{color:var(--text-muted)}
 body.light #home-ver-build{color:#7a7a96}
 
 /* ── THEMED CONFIRM / ALERT DIALOG ── */
@@ -275,7 +295,7 @@ body.light #home-ver-build{color:#7a7a96}
 .help-panel{display:flex;flex-direction:column;width:760px;max-width:100%;max-height:88vh;background:#16162c;border:1px solid #2f2f52;border-radius:12px;box-shadow:0 16px 60px rgba(0,0,0,.6);overflow:hidden}
 .help-head{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #2a2a4a;flex-shrink:0}
 .help-head h2{font-size:16px;font-weight:700;color:#f2f2f7;margin:0;flex:1}
-.help-head .help-hint{font-size:11px;color:#76769a}
+.help-head .help-hint{font-size:11px;color:var(--text-faint)}
 .help-x{width:28px;height:28px;border-radius:6px;border:1px solid #2f2f52;background:#1e1e38;color:#cfcfe4;font-size:15px;cursor:pointer;flex-shrink:0;line-height:1}
 .help-x:hover{background:#c0392b;border-color:#e74c3c;color:#fff}
 .help-body{padding:6px 20px 20px;overflow-y:auto}
@@ -283,9 +303,9 @@ body.light #home-ver-build{color:#7a7a96}
 .help-sec{break-inside:avoid;margin-top:18px}
 .help-sec-h{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#e07a5f;font-weight:700;margin-bottom:7px;padding-bottom:4px;border-bottom:1px solid #2a2a4a}
 .help-row{display:flex;align-items:baseline;gap:10px;font-size:12px;line-height:1.45;padding:2px 0}
-.help-row .hk{flex:0 0 auto;min-width:84px;text-align:right;color:#aab}
+.help-row .hk{flex:0 0 auto;min-width:84px;text-align:right;color:var(--text-2)}
 .help-row .hd{flex:1;color:#c2c2d6}
-.help-p{font-size:12px;line-height:1.5;color:#9a9ab0;margin:5px 0 0}
+.help-p{font-size:12px;line-height:1.5;color:var(--text-muted);margin:5px 0 0}
 kbd.k{display:inline-block;font-family:monospace;font-size:11px;background:#23233f;border:1px solid #3a3a5a;border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:#dcdcf0;white-space:nowrap}
 
 /* ── QUICK START (first-time user experience) ── */
@@ -294,7 +314,7 @@ kbd.k{display:inline-block;font-family:monospace;font-size:11px;background:#2323
 .qs-panel{display:flex;flex-direction:column;width:680px;max-width:100%;max-height:88vh;background:#16162c;border:1px solid #2f2f52;border-radius:12px;box-shadow:0 16px 60px rgba(0,0,0,.6);overflow:hidden}
 .qs-head{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #2a2a4a;flex-shrink:0}
 .qs-head h2{font-size:16px;font-weight:700;color:#f2f2f7;margin:0;flex:1}
-.qs-head .qs-sub{font-size:11px;color:#76769a}
+.qs-head .qs-sub{font-size:11px;color:var(--text-faint)}
 .qs-x{width:28px;height:28px;border-radius:6px;border:1px solid #2f2f52;background:#1e1e38;color:#cfcfe4;font-size:15px;cursor:pointer;flex-shrink:0;line-height:1}
 .qs-x:hover{background:#c0392b;border-color:#e74c3c;color:#fff}
 .qs-body{padding:6px 20px;overflow-y:auto}
@@ -305,9 +325,9 @@ kbd.k{display:inline-block;font-family:monospace;font-size:11px;background:#2323
 .qs-txt{flex:1}
 .qs-num{font-size:10px;font-weight:700;color:#e67e22;letter-spacing:.07em;text-transform:uppercase}
 .qs-step h3{font-size:14px;font-weight:700;color:#eaeaf4;margin:1px 0 4px}
-.qs-step p{font-size:12.5px;line-height:1.5;color:#a8a8c4;margin:0}
+.qs-step p{font-size:12.5px;line-height:1.5;color:var(--text-2);margin:0}
 .qs-foot{display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid #2a2a4a;flex-shrink:0}
-.qs-note{flex:1;font-size:11.5px;color:#76769a;line-height:1.4}
+.qs-note{flex:1;font-size:11.5px;color:var(--text-faint);line-height:1.4}
 .qs-link{background:none;border:none;color:#5aa9ff;font-size:12.5px;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap}
 .qs-link:hover{color:#84c0ff}
 .qs-done{padding:9px 18px;border-radius:8px;border:1px solid #e74c3c;background:#c0392b;color:#fff;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0}
@@ -315,30 +335,33 @@ kbd.k{display:inline-block;font-family:monospace;font-size:11px;background:#2323
 .home-firsttime{display:inline-flex;align-items:center;gap:6px;margin:-16px auto 28px;background:none;border:none;color:#e67e22;font-size:13px;cursor:pointer;font-weight:600}
 .home-firsttime:hover{color:#f59a4a;text-decoration:underline}
 
-/* ══ LIGHT MODE ══ additive overrides under body.light; the dark theme above stays
-   the default. The red accent (#c0392b/#e74c3c) is intentionally kept in both themes. */
-body.light{background:#eef0f4;color:#23232e}
+/* ══ LIGHT MODE ══ overrides under body.light. Most colour now lives in the design TOKENS
+   (see :root): light re-points the tokens, which fixes every tokenised text role at once in
+   both themes — so only surface/border/shadow + intentional STATE colours remain per-selector.
+   The red accent is shared across themes by design. See STYLE_GUIDE.md (contrast audit). */
+body.light{
+  --bg:#eef0f4; --canvas:#fbfbfd; --panel:#e4e6ee; --raised:#fff; --dialog:#fff;
+  --hover:#d4d7e4; --border:#cdd0dc; --border-soft:#dde0ea;
+  --text:#23232e; --text-2:#3f3f4a; --text-muted:#5c5c68; --text-faint:#5a5a66; --text-heading:#54546a;
+  --stitch:#b5640f;
+  background:#eef0f4;color:#23232e}
 /* menubar */
 body.light #menubar{background:#e4e6ee;border-bottom-color:#cdd0dc}
-body.light .m-item:hover,body.light .m-item:focus-within{background:#d4d7e4}
+body.light .m-item:hover,body.light .m-item:focus-within,body.light .m-item.open{background:#d4d7e4}
 body.light .m-drop{background:#fff;border-color:#cdd0dc;box-shadow:0 6px 20px rgba(40,40,70,.18)}
 body.light .m-act:hover,body.light .m-nest:hover{background:#e6e8f2}
-body.light .m-act .kb{color:#aaa}
 body.light .m-sep{background:#dde0ea}
-body.light .m-grp-lbl{color:#999}
-body.light #app-title{color:#aab}
 body.light #theme-toggle{color:#6a6a82}
 body.light #theme-toggle:hover,body.light #theme-toggle:focus-visible{color:#222}
 /* toolbar (the .active red button is shared with dark) */
 body.light #toolbar{background:#e4e6ee;border-right-color:#cdd0dc}
-body.light .t-btn{color:#666}
 body.light .t-btn:hover{background:#d4d7e4;color:#111}
 body.light .t-sep{background:#dde0ea}
 body.light .t-btn[data-tip]:hover::after{background:#2a2a3a;color:#fff;border-color:#2a2a3a}
 /* canvas */
 body.light #canvas-wrap{background:#fbfbfd}
 body.light #tabbar{background:#eceef4;border-bottom-color:#cdd0dc}
-body.light .tab{background:#e4e6ee;border-color:#cdd0dc;color:#667}
+body.light .tab{background:#e4e6ee;border-color:#cdd0dc}
 body.light .tab:hover{background:#dfe2ec;color:#223}
 body.light .tab.active{background:#fbfbfd;color:#112;border-color:#b9bccc}
 body.light .tab-x:hover{background:#c9ccda;color:#000}
@@ -347,46 +370,32 @@ body.light .tab-new:hover{background:#dfe2ec;color:#112}
 body.light #props{background:#e4e6ee;border-left-color:#cdd0dc}
 body.light #props-resize:hover,body.light #props-resize.dragging{background:#d4d7e4}
 body.light .p-sec{border-bottom-color:#dde0ea}
-body.light .p-hd{color:#888}
 body.light .p-hd:hover{color:#333}
-body.light .p-tog{color:#aaa}
-body.light .p-dim-sum{color:#445;background:#dfe2ee}
-body.light .p-grp{color:#8888a0;border-bottom-color:#d2d5e2}
-body.light .p-fl,body.light .p-lbl{color:#888}
+body.light .p-dim-sum{color:#33384a;background:#dfe2ee}
+body.light .p-grp{border-bottom-color:#d2d5e2}
 body.light .p-inp,body.light .p-sel{background:#fff;border-color:#cdd0dc;color:#23232e}
-body.light .p-inp[readonly]{color:#aaa}
-body.light .p-ck-row{color:#666}
-body.light .p-note{color:#999}
-body.light .p-btn{background:#fff;border-color:#cdd0dc;color:#555}
+body.light .p-btn{background:#fff;border-color:#cdd0dc;color:#444}
 body.light .align-cell{background:#fff;border-color:#cdd0dc}
 body.light .align-cell:hover{background:#eceefa}
-body.light .align-cell i{background:#aaa}
-body.light #no-sel-msg{color:#aaa}
+body.light .align-cell i{background:#888}
 /* layers */
 body.light .lay-row:hover{background:#e6e8f2}
 body.light .lay-row.sel{background:#d8dcf0;border-color:#b8bce0}
-body.light .lay-group{color:#7a7a96}
 body.light .lay-group:hover{background:#e6e8f2;color:#444}
-body.light .lay-group .lay-gcount{color:#aaa}
-body.light .lay-grip{color:#aaa}
-body.light .lay-name{color:#555}
+body.light .lay-group .lay-gcount{color:var(--text-faint)}
 body.light .lay-row.sel .lay-name{color:#111}
-body.light .lay-arr{background:#fff;border-color:#cdd0dc;color:#666}
+body.light .lay-arr{background:#fff;border-color:#cdd0dc;color:#555}
 body.light .lay-arr:hover:not(:disabled){background:#c8cce8;color:#111}
-body.light .lay-tog{color:#999}
 body.light .lay-tog:hover{background:#d8dcf0;color:#222}
 body.light .lay-tog.on{color:#3a3a6a}
 body.light .lay-tog.lock-on{color:#c75a1c}
-body.light .lay-op-v{color:#999}
 /* status bar */
-body.light #status{background:#e4e6ee;border-top-color:#cdd0dc;color:#888}
+body.light #status{background:#e4e6ee;border-top-color:#cdd0dc}
 /* settings / page modal */
 body.light .modal{background:#fff;border-color:#cdd0dc}
-body.light .m-lbl{color:#666}
 body.light .m-inp{background:#fff;border-color:#cdd0dc;color:#23232e}
-body.light .m-note{color:#999}
-body.light .m-section-hd{color:#999;border-top-color:#dde0ea}
-body.light .btn-cancel{background:#eef0f6;border-color:#cdd0dc;color:#555}
+body.light .m-section-hd{border-top-color:#dde0ea}
+body.light .btn-cancel{background:#eef0f6;border-color:#cdd0dc;color:#444}
 body.light .btn-cancel:hover{background:#dde0ea}
 /* SVG shape defaults + grid pattern lines */
 body.light .sh-fill{fill:rgba(0,0,0,.035)}
@@ -400,44 +409,35 @@ body.light #pgM-p{stroke:#c4c7da}
 body.light #home{background:radial-gradient(circle at 50% 32%, #ffffff 0%, #e9ebf3 72%)}
 body.light .home-thread rect{fill:#b48b50}
 body.light .home-card h1{color:#23232e}
-body.light .home-sub{color:#777}
 body.light .home-btn{background:#fff;border-color:#cdd0dc;color:#444}
 body.light .home-btn:hover{background:#eceefa}
-body.light .home-recents-h{color:#8888a0}
 body.light .home-recent{background:#fff;border-color:#d8dae8;color:#444}
 body.light .home-recent:hover{background:#eceefa;border-color:#c4c7da}
-body.light .home-recent-time{color:#999}
 body.light .home-recover{background:#eef6ec;border-color:#bcd8b0}
 body.light .home-recover:hover{background:#e2f0de}
 /* confirm / alert dialog */
 body.light .confirm-box{background:#fff;border-color:#cdd0dc;box-shadow:0 12px 50px rgba(40,40,70,.25)}
 body.light .confirm-inner h3{color:#23232e}
-body.light .confirm-inner p{color:#555}
+body.light .confirm-inner p{color:#444}
 body.light .cf-btn{background:#fff;border-color:#cdd0dc;color:#444}
 body.light .cf-cancel:hover{background:#eceefa}
 /* help overlay */
 body.light .help-panel{background:#fff;border-color:#cdd0dc;box-shadow:0 16px 60px rgba(40,40,70,.25)}
 body.light .help-head{border-bottom-color:#dde0ea}
 body.light .help-head h2{color:#23232e}
-body.light .help-head .help-hint{color:#999}
-body.light .help-x{background:#eef0f6;border-color:#cdd0dc;color:#555}
+body.light .help-x{background:#eef0f6;border-color:#cdd0dc;color:#444}
 body.light .help-sec-h{color:#c0392b;border-bottom-color:#e2e4ee}
-body.light .help-row .hk{color:#888}
 body.light .help-row .hd{color:#444}
-body.light .help-p{color:#777}
 body.light kbd.k{background:#eef0f6;border-color:#cdd0dc;color:#33384a}
 /* quick-start overlay */
 body.light .qs-panel{background:#fff;border-color:#cdd0dc;box-shadow:0 16px 60px rgba(40,40,70,.25)}
 body.light .qs-head{border-bottom-color:#dde0ea}
 body.light .qs-head h2{color:#23232e}
-body.light .qs-head .qs-sub{color:#999}
-body.light .qs-x{background:#eef0f6;border-color:#cdd0dc;color:#555}
+body.light .qs-x{background:#eef0f6;border-color:#cdd0dc;color:#444}
 body.light .qs-step{border-bottom-color:#e8eaf2}
 body.light .qs-step h3{color:#23232e}
-body.light .qs-step p{color:#555}
 body.light .qs-ill{background:#f3f4fa;border-color:#dde0ea}
 body.light .qs-foot{border-top-color:#dde0ea}
-body.light .qs-note{color:#999}
 </style>
 </head>
 <body>
@@ -472,6 +472,7 @@ body.light .qs-note{color:#999}
       <p id="confirm-msg"></p>
       <div class="confirm-actions">
         <button id="confirm-cancel" class="cf-btn cf-cancel" onclick="closeConfirm(false)">Cancel</button>
+        <button id="confirm-alt" class="cf-btn cf-cancel" style="display:none" onclick="closeConfirm('alt')"></button>
         <button id="confirm-ok" class="cf-btn cf-primary" onclick="closeConfirm(true)">OK</button>
       </div>
     </div>
@@ -645,6 +646,10 @@ body.light .qs-note{color:#999}
       <div class="m-act" onclick="triggerLoad()">Open (.lpd) <span class="kb">Ctrl+O</span></div>
       <div class="m-sep"></div>
       <div class="m-act" onclick="exportSVG()">Export SVG</div>
+      <div class="m-grp-lbl">Export PNG</div>
+      <div class="m-nest" style="padding-left:22px"><div class="m-act" style="padding:0" onclick="exportPNG(150)">150 DPI (draft)</div></div>
+      <div class="m-nest" style="padding-left:22px"><div class="m-act" style="padding:0" onclick="exportPNG(300)">300 DPI (print)</div></div>
+      <div class="m-nest" style="padding-left:22px"><div class="m-act" style="padding:0" onclick="exportPNG(600)">600 DPI (high)</div></div>
       <div class="m-act" onclick="printPattern()">Print / Save PDF <span class="kb">Ctrl+P</span></div>
     </div>
   </div>
@@ -691,7 +696,7 @@ body.light .qs-note{color:#999}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.7.16</div>
+  <div id="app-title">Leather Pattern Designer v0.7.20</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -797,7 +802,7 @@ body.light .qs-note{color:#999}
           <div id="grp-text" style="display:none">
             <div class="p-grp">Text</div>
             <textarea class="p-inp" id="pi-text" rows="3" placeholder="Type text…" style="width:100%;resize:vertical;font-family:system-ui" onfocus="beginTextEdit()" oninput="liveTextInput()" onblur="endTextEdit()"></textarea>
-            <div class="p-row" style="margin-top:6px"><span class="p-lbl">Font size</span><input class="p-inp" id="pi-fontsize" type="number" step="0.5" min="1" onchange="applyTextProps()"><span style="font-size:11px;color:#777;margin-left:4px">mm</span></div>
+            <div class="p-row" style="margin-top:6px"><span class="p-lbl">Font size</span><input class="p-inp" id="pi-fontsize" type="number" step="0.5" min="1" onchange="applyTextProps()"><span style="font-size:11px;color:var(--text-muted);margin-left:4px">mm</span></div>
             <div class="p-row" style="gap:6px;display:flex;margin-top:5px">
               <button class="p-btn" id="pi-bold" style="flex:1;font-weight:700" title="Bold" onclick="toggleTextStyle('bold')">B</button>
               <button class="p-btn" id="pi-italic" style="flex:1;font-style:italic" title="Italic" onclick="toggleTextStyle('italic')">I</button>
@@ -818,14 +823,14 @@ body.light .qs-note{color:#999}
             <label class="p-ck-row" style="margin-top:8px"><input type="checkbox" id="pi-fill" onchange="applyTextProps()"> Fill</label>
             <label class="p-ck-row"><input type="checkbox" id="pi-outline" onchange="applyTextProps()"> Outline</label>
             <div id="row-outline" style="display:none">
-              <div class="p-row"><span class="p-lbl">Outline width</span><input class="p-inp" id="pi-outlinew" type="number" step="0.05" min="0.05" onchange="applyTextProps()"><span style="font-size:11px;color:#777;margin-left:4px">mm</span></div>
+              <div class="p-row"><span class="p-lbl">Outline width</span><input class="p-inp" id="pi-outlinew" type="number" step="0.05" min="0.05" onchange="applyTextProps()"><span style="font-size:11px;color:var(--text-muted);margin-left:4px">mm</span></div>
               <div class="p-row"><span class="p-lbl">Outline color</span><div id="pi-outline-colors" class="swatches"></div></div>
             </div>
           </div>
 
           <!-- ROTATION (after Size, all shape types) -->
           <div class="p-grp">Rotation</div>
-          <div class="p-field"><span class="p-fl" style="width:auto">Angle</span><input class="p-inp" id="pi-rot" type="number" step="15" onchange="applyProps()"><span style="font-size:11px;color:#777">°</span></div>
+          <div class="p-field"><span class="p-fl" style="width:auto">Angle</span><input class="p-inp" id="pi-rot" type="number" step="15" onchange="applyProps()"><span style="font-size:11px;color:var(--text-muted)">°</span></div>
 
           <!-- CORNERS (rect only) -->
           <div id="grp-corners">
@@ -854,7 +859,7 @@ body.light .qs-note{color:#999}
           <!-- APPEARANCE -->
           <div class="p-grp">Appearance</div>
           <div class="p-row"><span class="p-lbl">Color</span><div id="pi-colors" class="swatches"></div></div>
-          <div class="p-row"><span class="p-lbl">Type</span><span id="pi-type" style="font-size:12px;color:#aaa"></span></div>
+          <div class="p-row"><span class="p-lbl">Type</span><span id="pi-type" style="font-size:12px;color:var(--text-2)"></span></div>
 
           <!-- ACTIONS -->
           <div id="grp-convert">
@@ -907,7 +912,7 @@ body.light .qs-note{color:#999}
         <span>Pen Tool</span><span class="p-tog">▾</span>
       </div>
       <div class="p-sec-body" id="body-pen">
-        <p class="p-note" style="color:#aaa;line-height:1.7">
+        <p class="p-note" style="color:var(--text-faint);line-height:1.7">
           <b>Click</b> — corner point<br>
           <b>Click+Drag</b> — smooth curve<br>
           <b>Shift</b> — snap to grid<br>
@@ -1036,6 +1041,16 @@ body.light .qs-note{color:#999}
       <input class="m-inp" id="set-labelmm" type="number" min="1" max="50" step="0.5">
     </div>
 
+    <div class="m-section-hd">Export</div>
+    <div class="m-row">
+      <span class="m-lbl">PNG resolution (DPI)</span>
+      <select class="m-inp" id="set-pngdpi">
+        <option value="150">150 (draft)</option>
+        <option value="300">300 (print)</option>
+        <option value="600">600 (high)</option>
+      </select>
+    </div>
+
     <div class="m-section-hd">Page / Artboard</div>
     <div class="m-row">
       <span class="m-lbl">Name</span>
@@ -1085,8 +1100,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.7.16';
-const BUILD_TAG = 'birch-falcon-V7';
+const APP_VERSION = 'v0.7.20';
+const BUILD_TAG = 'maple-osprey-V8';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -1233,6 +1248,7 @@ const S = {
   // canvas label font
   dimFontSize:13,
   labelMM:5,  // on-shape piece-label size, in mm (prints at true size)
+  pngDPI:300, // PNG export resolution (dots-per-inch); UI pref, persisted to localStorage['lpat-png-dpi'], not in the file
   // pen tool
   penPts:[],         // [{x,y,cp1x,cp1y,cp2x,cp2y,corner}]
   penDown:false,
@@ -1377,10 +1393,10 @@ function renderTabs(){
     const title = (i===S.activeTab ? tabTitle() : t.title) || 'Untitled';
     h += `<div class="tab${i===S.activeTab?' active':''}" title="${escapeXML(title)}" onclick="switchTab(${i})">`
        + `<span class="tab-name">${escapeXML(title)}</span>`
-       + `<span class="tab-x" title="Close tab" onclick="event.stopPropagation();closeTab(${i})">&times;</span>`
+       + `<span class="tab-x" role="button" tabindex="0" aria-label="Close tab" title="Close tab" onclick="event.stopPropagation();closeTab(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();closeTab(${i});}">&times;</span>`
        + `</div>`;
   });
-  h += `<button class="tab-new" title="New tab" onclick="newTab()">+</button>`;
+  h += `<button class="tab-new" aria-label="New tab" title="New tab" onclick="newTab()">+</button>`;
   bar.innerHTML = h;
 }
 
@@ -3770,6 +3786,8 @@ function applyToolChrome(t) {
   document.querySelectorAll('.t-btn').forEach(b=>b.classList.remove('active'));
   const btn=document.getElementById('tb-'+t);
   if(btn) btn.classList.add('active');
+  // a11y: reflect the active tool to assistive tech
+  ['select','rotate','artboard','rect','pen','text'].forEach(k=>{ const b=document.getElementById('tb-'+k); if(b) b.setAttribute('aria-pressed', String(k===t)); });
   wrap.className=''; if(t==='select'||t==='artboard') wrap.classList.add('cur-select'); else if(t==='text') wrap.classList.add('cur-text');
   ST.tool.textContent=`Tool: ${t.charAt(0).toUpperCase()+t.slice(1)}`;
   document.getElementById('pen-hints-sec').style.display=t==='pen'?'':'none';
@@ -3833,8 +3851,66 @@ function toggleTheme(){
 }
 // Restore the saved theme on launch (no flash: only adds the class if light).
 function restoreTheme(){
-  try{ if(localStorage.getItem('lpat-theme')==='light') S.light=true; }catch(_){}
+  try{
+    const t=localStorage.getItem('lpat-theme');
+    if(t==='light'||t==='dark') S.light=(t==='light');                                            // explicit user choice wins
+    else if(window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) S.light=true; // first run → follow the OS
+  }catch(_){}
+  try{ const d=+localStorage.getItem('lpat-png-dpi'); if(d) S.pngDPI=d; }catch(_){}
   applyTheme();
+}
+
+// ── Accessibility wiring (run once at launch) ──
+// Toolbar icon buttons only carry a CSS `data-tip` tooltip (invisible to screen readers); mirror it
+// into aria-label. Tool buttons also get aria-pressed (kept in sync by applyToolChrome). The menubar
+// is made click-to-open + keyboard-navigable by initMenubar().
+function initAccessibility(){
+  const tb=document.getElementById('toolbar'); if(tb) tb.setAttribute('role','toolbar');
+  document.querySelectorAll('.t-btn[data-tip]').forEach(b=>{ if(!b.getAttribute('aria-label')) b.setAttribute('aria-label', b.dataset.tip); });
+  const tt=document.getElementById('theme-toggle'); if(tt&&!tt.getAttribute('aria-label')) tt.setAttribute('aria-label','Toggle light / dark mode');
+  initMenubar();
+}
+// Accessible menubar: CLICK to open (the menu STAYS open — an accidental mouse-out no longer closes
+// it); once a menu is open, hovering a sibling switches to it; Esc or an outside click closes it.
+// Command actions close the menu on click; toggle/radio rows (those with a checkmark) keep it open so
+// several can be flipped. Full keyboard support: Tab to the bar, Enter/Space/↓ opens, ↑/↓ move within
+// a menu, ←/→ move between menus, Enter activates, Esc closes. ARIA: role=menubar/menu/menuitem +
+// aria-haspopup/aria-expanded.
+function initMenubar(){
+  const bar=document.getElementById('menubar'); if(!bar) return;
+  bar.setAttribute('role','menubar');
+  const tops=[...bar.querySelectorAll('.m-item')];
+  const acts=it=>[...it.querySelectorAll('.m-act')];
+  let open=null;
+  function close(focusTop){ if(!open) return; const o=open; o.classList.remove('open'); o.setAttribute('aria-expanded','false'); open=null; if(focusTop) o.focus(); }
+  function openIt(it,focusFirst){ if(open&&open!==it) close(false); it.classList.add('open'); it.setAttribute('aria-expanded','true'); open=it; if(focusFirst){ const a=acts(it)[0]; if(a) a.focus(); } }
+  tops.forEach(it=>{
+    it.tabIndex=0; it.setAttribute('role','menuitem'); it.setAttribute('aria-haspopup','true'); it.setAttribute('aria-expanded','false');
+    const drop=it.querySelector('.m-drop'); if(drop) drop.setAttribute('role','menu');
+    acts(it).forEach(a=>{ a.setAttribute('role','menuitem'); a.tabIndex=-1; });
+    it.addEventListener('click',e=>{ if(e.target.closest('.m-drop')) return; e.stopPropagation(); it.classList.contains('open')?close(false):openIt(it,false); });
+    it.addEventListener('mouseenter',()=>{ if(open) openIt(it,false); });
+  });
+  // an action click runs its own onclick (bubble reaches here after); commands close the menu,
+  // toggle/radio rows (with a checkmark) keep it open so the user can flip several.
+  bar.addEventListener('click',e=>{ const a=e.target.closest('.m-act'); if(a && !a.querySelector('.m-chk')) close(false); });
+  document.addEventListener('click',e=>{ if(open && !e.target.closest('#menubar')) close(false); });
+  bar.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){ if(open){ e.preventDefault(); e.stopPropagation(); close(true); } return; }
+    const ae=document.activeElement, ti=tops.indexOf(ae);
+    if(ti>=0){ // focus on a top-level item
+      if(e.key==='ArrowDown'||e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); openIt(ae,true); }
+      else if(e.key==='ArrowRight'||e.key==='ArrowLeft'){ e.preventDefault(); e.stopPropagation(); const n=tops[(ti+(e.key==='ArrowRight'?1:tops.length-1))%tops.length]; n.focus(); if(open) openIt(n,false); }
+      return;
+    }
+    if(open && ae.classList.contains('m-act')){ // focus inside an open menu
+      const list=acts(open), i=list.indexOf(ae);
+      if(e.key==='ArrowDown'){ e.preventDefault(); e.stopPropagation(); list[(i+1)%list.length].focus(); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); e.stopPropagation(); list[(i-1+list.length)%list.length].focus(); }
+      else if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); ae.click(); }
+      else if(e.key==='ArrowRight'||e.key==='ArrowLeft'){ e.preventDefault(); e.stopPropagation(); const oi=tops.indexOf(open); openIt(tops[(oi+(e.key==='ArrowRight'?1:tops.length-1))%tops.length],true); }
+    }
+  });
 }
 
 // ── PAGE / ARTBOARD ──
@@ -4099,7 +4175,7 @@ function layerRowHTML(s,sel,top,bot,nested){
 function toggleLayerGroup(key){ S.layerCollapsed[key]=!S.layerCollapsed[key]; renderLayers(); }
 function renderLayers(){
   const list=document.getElementById('layers-list'); if(!list) return;
-  if(!S.shapes.length){ list.innerHTML='<p class="p-note" style="text-align:center;color:#555">No shapes yet.</p>'; return; }
+  if(!S.shapes.length){ list.innerHTML='<p class="p-note" style="text-align:center;color:var(--text-faint)">No shapes yet.</p>'; return; }
   // Group shapes by their artboard (front-most first within each), then an "unplaced" section.
   // Shapes nest under their artboard; shapes on no artboard are top-level. With a single section
   // (one artboard holding everything) we render a flat list — no header — to keep the simple case simple.
@@ -4632,7 +4708,7 @@ function buildSVGExports(all){
     const base=all?abFileStem(ab):docName(); let stem=base, n=2;
     while(used.has(stem)) stem=base+'-'+(n++);
     used.add(stem);
-    return {name:stem+'.svg', svg:svgStringFor(ab)};
+    return {stem, name:stem+'.svg', w:ab.w, h:ab.h, svg:svgStringFor(ab)};
   });
 }
 function downloadBlob(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
@@ -4640,13 +4716,16 @@ async function exportSVG(){
   // One artboard → export it (picker). Several → ask: all artboards (separate files) or just the active one.
   let all=false;
   if(S.artboards.length>1){
-    all=await confirmModal(`This document has ${S.artboards.length} artboards. Export all of them as separate SVG files?`,
-      {title:'Export SVG', ok:'All artboards', cancel:'Active only'});
+    const r=await confirmModal(`This document has ${S.artboards.length} artboards. Export all of them as separate SVG files, or just the active one?`,
+      {title:'Export SVG', ok:'All artboards', alt:'Active only', cancel:'Cancel'});
+    if(r===false) return;        // cancelled / Esc — no silent export
+    all = (r===true);            // true = All, 'alt' = Active only
   }
   const pPan={...S.pan},pZoom=S.zoom,pSel=S.selId;
   S.selId=null; S.pan={x:0,y:0}; S.zoom=1; renderContent();
   const out=buildSVGExports(all);
   S.pan=pPan; S.zoom=pZoom; S.selId=pSel; renderContent(); // restore the live view before saving/prompting
+  if(isDesktop()){ await exportSVGNative(out, all); return; } // native save dialog / folder picker
   const mk=o=>new Blob([o.svg],{type:'image/svg+xml'});
   if(all){
     // batch → download each directly (a per-file save picker would consume the click's activation)
@@ -4655,6 +4734,111 @@ async function exportSVG(){
   } else {
     saveBlob(mk(out[0]), out[0].name, [{description:'SVG image',accept:{'image/svg+xml':['.svg']}}]);
   }
+}
+// Desktop (Tauri) SVG export. Single artboard → native Save dialog (.svg filter) → write via the
+// `save_file` command (the same generic Rust fs wrapper the .lpd save uses). Several artboards →
+// pick a destination folder and write each file into it. Degrades to a browser download if the
+// dialog plugin global is absent, so export always produces a file. Paths use '/' — Windows
+// std::fs accepts it. No-op in a plain browser (exportSVG only calls this when isDesktop()).
+async function exportSVGNative(out, all){
+  const d = window.__TAURI__ && window.__TAURI__.dialog;
+  const dl = o => downloadBlob(new Blob([o.svg],{type:'image/svg+xml'}), o.name);
+  if(all){
+    let dir;
+    try{ dir = (d && d.open) ? await d.open({directory:true, title:'Choose a folder for the SVG files'}) : undefined; }
+    catch(err){ alertModal('Could not export: '+err, 'Export Failed'); return; }
+    if(dir === undefined){ out.forEach(dl); flashSaved(`Exported ${out.length} SVGs ✓`); return; } // plugin missing
+    if(!dir) return; // user cancelled
+    try{
+      for(const o of out) await tauriInvoke('save_file', { path: dir+'/'+o.name, contents:o.svg });
+      flashSaved(`Exported ${out.length} SVGs ✓`);
+    }catch(err){ alertModal('Could not export: '+err, 'Export Failed'); }
+    return;
+  }
+  let path;
+  try{ path = (d && d.save) ? await d.save({ defaultPath: out[0].name, filters:[{name:'SVG image', extensions:['svg']}] }) : undefined; }
+  catch(err){ alertModal('Could not export: '+err, 'Export Failed'); return; }
+  if(path === undefined){ dl(out[0]); return; } // plugin missing → download
+  if(!path) return; // user cancelled
+  if(!/\.svg$/i.test(path)) path += '.svg';
+  try{ await tauriInvoke('save_file', { path, contents: out[0].svg }); flashSaved('Exported SVG ✓'); }
+  catch(err){ alertModal('Could not export: '+err, 'Export Failed'); }
+}
+// Rasterise one artboard's export SVG into a PNG Blob at `dpi` (mm→px = dpi/25.4). The SVG is
+// self-contained (no external refs), so loading it through a blob URL into an <Image> and drawing
+// it onto a 2D canvas does NOT taint the canvas → toBlob works. White background to match print
+// (PNG would otherwise be transparent). Returns a Promise<Blob>.
+function svgToPngBlob(svg, wMM, hMM, dpi){
+  return new Promise((resolve,reject)=>{
+    const pxW=Math.max(1,Math.round(wMM/25.4*dpi)), pxH=Math.max(1,Math.round(hMM/25.4*dpi));
+    const url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const c=document.createElement('canvas'); c.width=pxW; c.height=pxH;
+        const ctx=c.getContext('2d');
+        ctx.fillStyle='#fff'; ctx.fillRect(0,0,pxW,pxH);
+        ctx.drawImage(img,0,0,pxW,pxH);
+        URL.revokeObjectURL(url);
+        c.toBlob(b=> b?resolve(b):reject(new Error('PNG encode failed')), 'image/png');
+      }catch(err){ URL.revokeObjectURL(url); reject(err); }
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('SVG could not be rasterised')); };
+    img.src=url;
+  });
+}
+// Export PNG: same artboard flow as exportSVG (all vs active), but each region is rasterised to PNG.
+// Resolution comes from the File ▸ Export PNG submenu (150/300/600); the chosen DPI is remembered as
+// the new default (S.pngDPI + localStorage, also shown in Settings). Called with no arg → uses the
+// remembered default. Desktop → native save (folder picker for "all"); browser → FS-Access / download.
+async function exportPNG(dpi){
+  if(dpi){ S.pngDPI=+dpi; try{ localStorage.setItem('lpat-png-dpi', S.pngDPI); }catch(_){} }
+  let all=false;
+  if(S.artboards.length>1){
+    const r=await confirmModal(`This document has ${S.artboards.length} artboards. Export all of them as separate PNG files, or just the active one?`,
+      {title:'Export PNG', ok:'All artboards', alt:'Active only', cancel:'Cancel'});
+    if(r===false) return;        // cancelled / Esc — no silent export
+    all = (r===true);            // true = All, 'alt' = Active only
+  }
+  const pPan={...S.pan},pZoom=S.zoom,pSel=S.selId;
+  S.selId=null; S.pan={x:0,y:0}; S.zoom=1; renderContent();
+  const out=buildSVGExports(all);
+  S.pan=pPan; S.zoom=pZoom; S.selId=pSel; renderContent(); // restore the live view before encoding/prompting
+  const useDpi=S.pngDPI||300;
+  let pngs;
+  try{ pngs=await Promise.all(out.map(async o=>({name:o.stem+'.png', blob:await svgToPngBlob(o.svg,o.w,o.h,useDpi)}))); }
+  catch(err){ alertModal('Could not render PNG: '+((err&&err.message)||err), 'Export Failed'); return; }
+  if(isDesktop()){ await exportPNGNative(pngs, all); return; }
+  if(all){ pngs.forEach(p=>downloadBlob(p.blob,p.name)); flashSaved(`Exported ${pngs.length} PNGs ✓`); }
+  else { saveBlob(pngs[0].blob, pngs[0].name, [{description:'PNG image',accept:{'image/png':['.png']}}]); }
+}
+// Desktop (Tauri) PNG export — mirrors exportSVGNative but writes BINARY via the `save_file_bytes`
+// Rust command (PNG can't ride the JSON-string `save_file`). Degrades to a browser download if the
+// dialog plugin global is absent. `pngs` = [{name, blob}].
+async function exportPNGNative(pngs, all){
+  const d = window.__TAURI__ && window.__TAURI__.dialog;
+  const dl = p => downloadBlob(p.blob, p.name);
+  const writeBytes = async (path, blob)=> tauriInvoke('save_file_bytes', { path, bytes: Array.from(new Uint8Array(await blob.arrayBuffer())) });
+  if(all){
+    let dir;
+    try{ dir = (d && d.open) ? await d.open({directory:true, title:'Choose a folder for the PNG files'}) : undefined; }
+    catch(err){ alertModal('Could not export: '+err, 'Export Failed'); return; }
+    if(dir === undefined){ pngs.forEach(dl); flashSaved(`Exported ${pngs.length} PNGs ✓`); return; } // plugin missing
+    if(!dir) return; // user cancelled
+    try{
+      for(const p of pngs) await writeBytes(dir+'/'+p.name, p.blob);
+      flashSaved(`Exported ${pngs.length} PNGs ✓`);
+    }catch(err){ alertModal('Could not export: '+err, 'Export Failed'); }
+    return;
+  }
+  let path;
+  try{ path = (d && d.save) ? await d.save({ defaultPath: pngs[0].name, filters:[{name:'PNG image', extensions:['png']}] }) : undefined; }
+  catch(err){ alertModal('Could not export: '+err, 'Export Failed'); return; }
+  if(path === undefined){ dl(pngs[0]); return; } // plugin missing → download
+  if(!path) return; // user cancelled
+  if(!/\.png$/i.test(path)) path += '.png';
+  try{ await writeBytes(path, pngs[0].blob); flashSaved('Exported PNG ✓'); }
+  catch(err){ alertModal('Could not export: '+err, 'Export Failed'); }
 }
 // Frame an SVG clone of the current scene to one artboard's region at true mm scale, stripping
 // the screen-only aids (grid, rulers, defs, page outline). The CALLER must have rendered the scene
@@ -4730,6 +4914,7 @@ function openSettings(){
   document.getElementById('set-cache-note').textContent = 'Deletes the stored recovery snapshot from this browser. Does not touch your saved .lpd files.';
   document.getElementById('set-fontsize').value = S.dimFontSize;
   document.getElementById('set-labelmm').value  = S.labelMM;
+  document.getElementById('set-pngdpi').value   = S.pngDPI;
   document.getElementById('set-page-name').value = S.page.name||'';
   document.getElementById('set-page-preset').value = S.page.preset;
   document.getElementById('set-page-orient').value = S.page.orient;
@@ -4754,6 +4939,8 @@ function saveSettings(){
   S.rotStep     = Math.min(180,Math.max(0,+document.getElementById('set-rotstep').value||0));
   S.dimFontSize = Math.min(48,Math.max(8,+document.getElementById('set-fontsize').value||13));
   S.labelMM     = Math.min(50,Math.max(1,+document.getElementById('set-labelmm').value||5));
+  S.pngDPI      = +document.getElementById('set-pngdpi').value||300;
+  try{ localStorage.setItem('lpat-png-dpi', S.pngDPI); }catch(_){}
   // page / artboard
   S.page.name = (document.getElementById('set-page-name').value||'').trim() || 'Untitled';
   S.page.preset = document.getElementById('set-page-preset').value;
@@ -4844,9 +5031,11 @@ function renderHomeStitch(){
 // ── Themed in-app confirm / alert (replaces native confirm()/alert(), framed in french stitching) ──
 let _confirmResolve=null;
 function isConfirmOpen(){ const b=document.getElementById('confirm-bg'); return b && b.classList.contains('open'); }
-// confirmModal(msg) → Promise<bool>. opts: {ok, cancel (null hides it → alert), danger, title}.
+// confirmModal(msg) → Promise. opts: {ok, cancel (null hides it → alert), alt (optional MIDDLE button),
+// danger, title}. Resolves: OK → true, Cancel/Esc/backdrop → false, alt button → the string 'alt'.
+// Back-compatible: callers that don't pass `alt` still get a plain true/false.
 function confirmModal(message, opts){
-  opts=Object.assign({ok:'OK', cancel:'Cancel', danger:false, title:''}, opts||{});
+  opts=Object.assign({ok:'OK', cancel:'Cancel', alt:null, danger:false, title:''}, opts||{});
   return new Promise(resolve=>{
     _confirmResolve=resolve;
     document.getElementById('confirm-msg').textContent=message;
@@ -4856,6 +5045,8 @@ function confirmModal(message, opts){
     ok.className='cf-btn '+(opts.danger?'cf-danger':'cf-primary');
     const cancel=document.getElementById('confirm-cancel');
     cancel.textContent=opts.cancel||''; cancel.style.display=opts.cancel?'':'none';
+    const alt=document.getElementById('confirm-alt');
+    alt.textContent=opts.alt||''; alt.style.display=opts.alt?'':'none';
     document.getElementById('confirm-bg').classList.add('open');
     sizeConfirmBorder();
     ok.focus();
@@ -4953,6 +5144,7 @@ updatePageMenu();
 updatePrintPageSize();
 restorePropsWidth();
 restoreTheme();   // sets S.light + body.light from localStorage, then repaints
+initAccessibility(); // toolbar/menubar ARIA + click-to-open keyboard-navigable menus
 renderContent();
 updateHistStatus();
 renderTabs();                           // paint the (single) initial document tab

@@ -1,5 +1,5 @@
 # Leather Pattern Designer — Session Context
-_Last updated: 2026-06-05 · Current version: v0.7.16 · Save format v14 (.lpd)_
+_Last updated: 2026-06-05 · Current version: v0.7.20 · Save format v14 (.lpd)_
 
 ---
 

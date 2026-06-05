@@ -1072,6 +1072,8 @@ window.__SMOKE__ = function (spec) {
       assert('export-active: a single entry', exActive.length === 1, `${exActive.length}`);
       assert('export-all: filenames are distinct', new Set(exAll.map(o => o.name)).size === exAll.length, exAll.map(o => o.name).join(','));
       assert('export-all: each svg frames its artboard', exAll.every((o, i) => o.svg.includes(`viewBox="${S.artboards[i].x * PX} ${S.artboards[i].y * PX} ${S.artboards[i].w * PX} ${S.artboards[i].h * PX}"`)), 'viewBox mismatch');
+      // export entries carry stem + mm dimensions (the PNG rasteriser needs w/h to size the canvas)
+      assert('export: entries carry stem + w/h', exAll.every((o, i) => o.stem && o.w === S.artboards[i].w && o.h === S.artboards[i].h), 'missing stem/w/h');
 
       // delete keeps at least one
       deleteArtboard(S.activeArtboard);

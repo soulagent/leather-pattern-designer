@@ -31,6 +31,12 @@ fn save_file(path: String, contents: String) -> Result<(), String> {
     std::fs::write(&path, contents).map_err(|e| e.to_string())
 }
 
+// Write raw bytes to disk (native PNG export — binary can't ride the String `save_file`).
+#[tauri::command]
+fn save_file_bytes(path: String, bytes: Vec<u8>) -> Result<(), String> {
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())
+}
+
 // First CLI argument that looks like a .lpd file → its path. The file association registers the
 // open command as `"...exe" "%1"`, so the path arrives as argv[1].
 fn launch_path() -> Option<String> {
@@ -61,7 +67,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(LaunchFile(Mutex::new(launch_path())))
-        .invoke_handler(tauri::generate_handler![take_launch_file, read_file, save_file])
+        .invoke_handler(tauri::generate_handler![take_launch_file, read_file, save_file, save_file_bytes])
         .run(tauri::generate_context!())
         .expect("error while running Leather Pattern Designer");
 }
