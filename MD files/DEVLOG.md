@@ -86,6 +86,17 @@ smoke tests.
 
 ---
 
+## v0.7.15 — 2026-06-05
+
+### Auto-update live verification release
+Version-only bump released through the GitHub Actions pipeline to prove the end-to-end updater: an
+installed **v0.7.14** sees this release via `latest.json`, downloads the signed installer, verifies it
+against the embedded public key, installs, and relaunches as **v0.7.15**. No functional change — the
+welcome-screen version string is the visible confirmation. First release delivered to a real install
+by the auto-updater. Build smoke 48/48, HTML smoke 349/349 unchanged.
+
+---
+
 ## v0.7.14 — 2026-06-05
 
 ### Auto-update — in-app "Check for Updates" (desktop)
