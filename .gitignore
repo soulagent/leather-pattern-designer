@@ -1,0 +1,26 @@
+# ── Build output ──
+# The Rust/Tauri build tree (3 GB+) and the build-time frontend copy are also
+# covered by desktop/.gitignore; repeated here so the root is self-explanatory.
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/dist/
+
+# Build logs (one per /build)
+desktop/build-*.log
+
+# Local test / scratch artifacts (regenerated; not sources of truth)
+desktop/si-test.lpd
+tests/_run.html
+tests/_dump.out
+tests/_dump.err
+
+# Claude Code machine-specific settings (permissions etc.). The shared
+# .claude/commands/ slash commands ARE tracked — only local settings are not.
+.claude/settings.local.json
+
+# Personal scratch
+.working-on.txt
+
+# OS cruft
+Thumbs.db
+.DS_Store

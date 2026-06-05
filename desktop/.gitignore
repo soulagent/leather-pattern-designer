@@ -1,0 +1,6 @@
+# Build artifacts and the synced frontend copy. None of these are sources of
+# truth: dist/index.html is regenerated from ../index.html by build.rs, and
+# everything under target/ / gen/ is produced by Cargo / the Tauri CLI.
+src-tauri/target/
+src-tauri/gen/
+dist/

@@ -1,0 +1,18 @@
+[package]
+name = "leather-pattern-designer"
+version = "0.7.13"
+description = "Leather Pattern Designer - desktop wrapper (Tauri v2)"
+edition = "2021"
+rust-version = "1.77"
+
+# The desktop shell is deliberately minimal: it only hosts the canonical
+# single-file app (../dist/index.html, a build-time copy of the repo-root
+# index.html). Keep app logic in index.html so the browser fallback stays valid.
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
