@@ -13,8 +13,7 @@ _What's built and what's still wanted. The dated changelog (newest first) is bel
 Remaining after the v0.7.20 accessibility/UX pass:
 - [ ] **Promote remaining clickable `<div>`s to real controls.** Menu actions + tab-close are now
   keyboard-activatable, but other `onclick` divs (layer rows, etc.) still aren't focusable/announced —
-  give them `role="button"` + `tabindex=0` + Enter/Space (or `<button>`). _(a11y; details in the UX
-  backlog below.)_
+  give them `role="button"` + `tabindex=0` + Enter/Space (or `<button>`). _(a11y)_
 - [ ] **`prefers-reduced-motion` support.** Soften/disable transitions+animations under `reduce`.
   Deliberately deferred as low priority.
 - [ ] **Finish palette tokenization.** Only text + accent are on CSS variables; migrate the remaining
@@ -26,55 +25,24 @@ _(Larger separate efforts are tracked in their own memories: the 3D companion ap
 migration — see the project memory.)_
 
 ### Already built (highlights)
-Rect + pen/bezier tools · per-edge stitching with even-distributed holes & geometric corner
-handling · per-shape colour · per-corner rect radii · convert-to-editable-path · per-anchor
-corner/smooth · shape-to-shape snap · multi-select (shift-click + rubber-band + group move/delete)
-· rulers · selectable + named artboard · auto-fitting on-shape labels · print/export at true
-artboard scale · Save / Save As (remembers the file & re-writes silently) · auto-save · headless
-smoke tests.
+Rect + pen/bezier tools · per-edge saddle stitching (even holes + geometric corners) · per-shape
+colour · per-corner rect radii · convert-to-editable-path · per-anchor corner/smooth · shape-to-shape
+snap · multi-select (shift-click + rubber-band + group move/delete) · shape rotation · rulers ·
+multiple named **artboards** (per-artboard print/export, layer grouping, geometry in undo) · **text-box
+tool** · per-layer hide/lock · duplicate + alt-drag duplicate · auto-fitting on-shape labels ·
+Save / Save As / auto-save · **light + dark themes on design tokens (WCAG AA)** · in-app Help + Quick
+Start · headless smoke tests. **Desktop (Tauri):** multi-file tabs · native open/save · single-instance
+· `.lpd` file association · signed **auto-update** via GitHub Releases · native **SVG + PNG** export.
+**Accessibility:** keyboard-navigable click-to-open menus · focus ring · ARIA roles/labels.
+_(Per-version detail is in the dated changelog below.)_
 
-### Next up
-- ✅ **Text-box tool** — DONE v0.5.0 (`T`). Wrap-bounded label boxes; mm font fixed under box
-  resize; bold/italic/outline + palette colour; in-place editor. _Follow-up ideas: alignment
-  (left/center/right), vertical-fit auto-grow, per-run styling._
-- ✅ **Multiple artboards** — first cut DONE v0.7.0 (`S.artboards[]`, Artboard tool **A**, panel,
-  save v13 + migration). ✅ multi-page **print/export** DONE v0.7.1. **Follow-ups still open:**
-  ✅ **Layers-panel grouping** DONE v0.7.2 (shapes nest under their artboard; off-artboard shapes
-  top-level; group-aware reorder). ✅ **Artboard geometry into undo** DONE v0.7.3. ✅ **Export all
-  artboards** DONE v0.7.4. _All artboards follow-ups complete._
-
-### Newly logged 2026-06-05 (not started)
-- **PNG export** — alongside SVG. Rasterise the same per-artboard SVG (`svgStringFor(ab)`) at a chosen
-  DPI: load the SVG string into an `Image`, draw onto an offscreen `<canvas>` sized `mm→px` at the
-  target DPI (e.g. 300), `canvas.toBlob('image/png')`. Reuse the export-all / active-only flow and the
-  desktop native-save path just added (`exportSVGNative` → a sibling `exportPNGNative`; `save_file`
-  can't take binary as a JSON string, so PNG needs a **new Rust `save_file_bytes(path, Vec<u8>)`**
-  command — or base64 over the existing string command). Add a DPI control. _Risk: none structurally;
-  watch SVG-feature fidelity in the canvas rasteriser (fonts, dashes) — our export SVG is simple so
-  low risk._
-- ✅ **Shared UI-language skill** — DONE 2026-06-05. Captured the app's visual/interaction conventions
-  (dark/light palette + shared red accent, Figma-style `.p-grp`/`.p-pair`/`.p-field` property rows,
-  french-stitch border `frenchBorder`, themed `confirmModal`/`alertModal` over native dialogs, toolbar
-  grouping, status-bar flash pattern, mm-true rendering rules) as a reusable skill at
-  `.claude/skills/ui-language/SKILL.md` (`leather-ui-language`) so this app and the companion tool
-  share one UI language. Stack-independent design tokens + interaction rules (survives the C++
-  migration), grounded in the live `index.html` values. _Open: user may fine-tune some elements, then
-  re-sync the skill._
-
-### UX / accessibility backlog (logged 2026-06-05 from the UX + a11y review)
-Colour contrast fixed in v0.7.19; the items below were addressed in v0.7.20 except where noted:
-- ✅ **Keyboard-accessible, click-to-open menus** — DONE v0.7.20 (`initMenubar`).
-- ⏸️ **Promote clickable `<div>`s to real controls (app-wide).** Not selected for v0.7.20; the *menu*
-  actions + tab close were made keyboard-activatable, but the other `onclick` divs (e.g. layer rows)
-  still aren't focusable/announced. Future.
-- ✅ **Visible focus ring** — DONE v0.7.20 (`:focus-visible`).
-- ✅ **ARIA labels** — DONE v0.7.20 (menubar/toolbar roles, icon-button `aria-label`, `aria-pressed`).
-- ⏸️ **`prefers-reduced-motion`.** Intentionally skipped (low priority, per the user). Future.
-- ✅ **Surface PNG DPI at export** — DONE v0.7.20 (Export PNG DPI submenu).
-- ✅ **3-way export-all dialog** — DONE v0.7.20 (`confirmModal` `opts.alt`; Esc=Cancel).
-- ✅ **System theme default** — DONE v0.7.20 (`prefers-color-scheme` on first run).
-- _(Optional future generalization: migrate the remaining surface/border literals — `#12122a`,
-  `#2a2a4a`, etc. — onto the new `--panel`/`--border` tokens; only text + accent are tokenised so far.)_
+### Still wanted (open follow-ups — not started)
+- **Text:** vertical-fit auto-grow; per-run styling (mixed bold/italic within one box).
+- **Pen:** true spline-closure geometry for smooth first/last anchors; drag-on-resume to set the
+  resumed endpoint's handle.
+- **Stitching / QOL:** default-spacing in Settings as the same stitching-iron dropdown the per-shape
+  Spacing uses; selection-count / multi-select summary in the properties panel.
+- _(The a11y, palette-tokenization and reduced-motion carry-forwards are in **Open TODOs** above.)_
 
 ### Companion app — 3D leather-goods preview/visualizer (vision, not started)
 A **second, parallel product** the user has wanted for a long time: take a finished `.lpd` template and
@@ -89,50 +57,6 @@ goals 3/4/5 are gated on first designing a seam/assembly data model (likely a `.
 sibling assembly file, plus seam-tagging UI in *this* app). Goals 1/2 (render/camera/material) are low
 risk; the 2D→3D fold is the hard, research-adjacent part — phase it, start with a flat-panel 3D viewer
 MVP and a parametric catalogue of common goods before attempting general free-form folding.
-
-### Layers panel follow-ups (built v0.3.30 — drag/▲▼ reorder + per-shape fill opacity)
-- ✅ **Per-layer visibility toggle (hide/show) and lock** — DONE v0.7.5 (eye + lock icons per row).
-
-### Planned features
-- ✅ **Duplicate shape** — DONE v0.4.7 (`Ctrl+D`). ✅ Alt-drag to duplicate-and-move — DONE v0.7.6.
-- ✅ **Pen-tool polish** — DONE v0.7.7 (close cue + Backspace point-undo) and v0.7.8 (placement
-  **ghost** crosshair + **resume an open path** from its endpoint). _Open follow-up: true spline
-  closure geometry for smooth first/last anchors; drag-on-resume to set the resumed end's handle._
-- ✅ **Rename save extension `.lpat` → `.lpd`** ("Leather Pattern Document") — DONE v0.7.9. Clean
-  rename, **no old-extension loading kept** (user removed their `.lpat` files). Cosmetic — no JSON
-  schema change.
-
-### Desktop / native (Tauri — scaffold built, see `desktop/`)
-- ✅ **Multi-file tabs** — DONE v0.7.13 (tab strip; active doc lives in `S`, inactive docs stashed).
-- ✅ **Native save/load** — DONE v0.7.12 (`tauri-plugin-dialog` + `save_file`/`read_file` commands,
-  feature-detected). ✅ **Single-instance** DONE v0.7.12.
-- **Auto-update (in-app "Check for Updates")** — _User-requested, planned (tasks #8-13)._ Use the
-  official **`tauri-plugin-updater`** (signed updates; not a hand-rolled version scrape). Steps:
-  (A) make the root a **Git/GitHub repo** (currently not one) — `.gitignore` excludes
-  `desktop/src-tauri/target/`, `tests/_run.html`/`_dump.*`; decide public vs private.
-  (B) **signing keypair** `cargo tauri signer generate` — private key + password → GitHub secrets,
-  public key → `tauri.conf.json`.
-  (C) wire **`tauri-plugin-updater`** (+ `tauri-plugin-process` for relaunch): Cargo + `.plugin()`,
-  capabilities `updater:default`/`process:allow-restart`, `plugins.updater.endpoints` (GitHub
-  `latest.json` URL) + `pubkey`, `bundle.createUpdaterArtifacts:true`.
-  (D) **"Check for Updates"** menu item → JS `check()` → themed prompt → `downloadAndInstall()` →
-  `process.relaunch()`; feature-detected behind `window.__TAURI__` (browser build hides it).
-  (E) **release pipeline**: GitHub Actions `tauri-apps/tauri-action` builds+signs+publishes the NSIS
-  installer + `.sig` + `latest.json` on a version tag.
-  (F) verify vN→vN+1 end-to-end; extend `run-build-smoke.ps1` with updater-config asserts.
-  _Caveat: only works on the **installed** app (NSIS), not the dev `target/release` exe. "Patching the
-  install" on Windows = downloading + running the new signed installer, not a binary diff._
-- Build the `.exe`: see [[build-workflow]] / `desktop/README.md` (toolchain installed).
-
-### QOL / smaller ideas
-- Default-spacing in Settings as the same stitching-iron dropdown the per-shape Spacing uses.
-- Selection count / multi-select summary in the properties panel.
-- ✅ Pen click = corner, click-drag = smooth — DONE v0.4.8 (mode retired; `corner` flag now matches geometry).
-
-### Docs
-- ✅ In-app help overlay (press `?`) — DONE v0.6.3 (`#help-bg`, also the toolbar **?** button).
-- ✅ Quick-start guide (tools, stitch workflow, print-to-cut) — DONE v0.7.6 as a 4-step **Quick Start**
-  overlay (`#qs-bg`), opened from the welcome screen's "First time?" entry.
 
 ### First-time user experience (FTUE) — keep current
 - **Maintenance commitment (user-stated):** whenever a headline feature lands or changes, refresh the
