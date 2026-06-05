@@ -89,6 +89,24 @@ Assert 'index.html: saveFileAs desktop branch' ($html -match 'if\(isDesktop\(\)\
 Assert 'index.html: triggerLoad desktop branch'($html -match 'if\(isDesktop\(\)\)\{ await triggerLoadNative\(\)')   'triggerLoad not routed'
 Assert 'index.html: listenForSecondInstance wired' ($html -match 'listenForSecondInstance\(\);') 'not called in init'
 
+# ---- 6b. auto-update wiring (tauri-plugin-updater + process) --------
+Assert 'Cargo: tauri-plugin-updater dep'    ($cg -match 'tauri-plugin-updater') 'not in Cargo.toml'
+Assert 'Cargo: tauri-plugin-process dep'    ($cg -match 'tauri-plugin-process') 'not in Cargo.toml'
+Assert 'Cargo: serde_json dep'              ($cg -match '(?m)^serde_json\s*=') 'updater config needs serde_json in generate_context!'
+Assert 'main.rs: updater plugin init'       ($rs -match 'tauri_plugin_updater::Builder') 'no updater .plugin()'
+Assert 'main.rs: process plugin init'       ($rs -match 'tauri_plugin_process::init') 'no process .plugin()'
+Assert 'capabilities: updater:default'      ($cp.permissions -contains 'updater:default') 'not granted'
+Assert 'capabilities: process:default'      ($cp.permissions -contains 'process:default') 'not granted'
+Assert 'tauri.conf: createUpdaterArtifacts' ($cf.bundle.createUpdaterArtifacts -eq $true) 'not enabled'
+$eps = @(); if ($cf.plugins -and $cf.plugins.updater) { $eps = @($cf.plugins.updater.endpoints) }
+Assert 'tauri.conf: updater endpoint set'   (@($eps | Where-Object { $_ -match 'releases/latest/download/latest\.json' }).Count -ge 1) 'no GitHub latest.json endpoint'
+Assert 'tauri.conf: updater pubkey set'     ($cf.plugins.updater.pubkey -and "$($cf.plugins.updater.pubkey)".Length -gt 40) 'pubkey missing/short'
+Assert 'index.html: checkForUpdates fn'     ($html -match 'function\s+checkForUpdates\b') 'helper not defined'
+Assert 'index.html: Check for Updates menu' ($html -match 'id="mi-update"') 'menu item missing'
+Assert 'index.html: uses updater global'    ($html -match '__TAURI__\.updater') 'never reads the updater API'
+Assert 'index.html: downloadAndInstall'     ($html -match 'downloadAndInstall\(') 'never installs the update'
+Assert 'index.html: relaunch after update'  ($html -match 'relaunch\(') 'never relaunches'
+
 # ---- 7. version sync -----------------------------------------------
 # APP_VERSION (dev), Cargo.toml, and tauri.conf move together (the version-bump checklist bumps
 # all three). build-info.json + BUILD_TAG identify the LAST PACKAGED build and legitimately lag the

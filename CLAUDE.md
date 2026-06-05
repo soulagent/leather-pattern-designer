@@ -7,7 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A single-file HTML/CSS/JS CAD app (`index.html`) for designing leather
 patterns: draw pieces (rect/circle/bezier path), add wrap-bounded text boxes, simulate
 saddle stitching, and export/print at true physical mm scale. **No build step, no dependencies, no npm** —
-the entire app is `index.html`, opened directly in a browser. Not a git repo.
+the entire app is `index.html`, opened directly in a browser.
+
+**Git:** repo is `soulagent/leather-pattern-designer` on GitHub (public; only `soulagent` can push).
+Build output (`desktop/src-tauri/target/`, `gen/`, `dist/`), build logs, temp test files, and
+`.claude/settings.local.json` are gitignored — see `.gitignore`.
 
 ## Read these first
 

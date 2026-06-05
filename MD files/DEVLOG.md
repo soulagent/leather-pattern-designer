@@ -86,6 +86,37 @@ smoke tests.
 
 ---
 
+## v0.7.14 — 2026-06-05
+
+### Auto-update — in-app "Check for Updates" (desktop)
+The installed desktop app can now update itself from GitHub Releases — no reinstall. Built on the
+official **`tauri-plugin-updater`** (signed updates), not a hand-rolled version scrape.
+
+- **Repo:** the project root is now a Git repo pushed to **`soulagent/leather-pattern-designer`**
+  (public; only soulagent can push). `.gitignore` excludes the 3 GB `target/`, `gen/`, generated
+  `dist/`, build logs, temp test files, `si-test.lpd`, and `.claude/settings.local.json`.
+- **Signing:** `cargo tauri signer generate` → keypair stored in `~/.tauri/` (outside the repo).
+  Public key in `tauri.conf.json plugins.updater.pubkey`; private key + password in GitHub Actions
+  secrets `TAURI_SIGNING_PRIVATE_KEY` / `..._PASSWORD`.
+- **Rust:** added `tauri-plugin-updater` (`Builder::new().build()`) + `tauri-plugin-process` (relaunch),
+  capabilities `updater:default` + `process:default`, and **`serde_json`** as a direct dep (the updater
+  config makes `generate_context!` reference it — without it, `cannot find serde_json` at compile).
+  `bundle.createUpdaterArtifacts:true` emits the `.sig` + `latest.json`. Endpoint:
+  `…/releases/latest/download/latest.json`.
+- **Frontend:** Help ▸ **Check for Updates…** (`#mi-update`, hidden in the browser build) →
+  `checkForUpdates(manual)`: `window.__TAURI__.updater.check()` → themed confirm with the new version +
+  notes → `downloadAndInstall()` with a live % flash → `process.relaunch()`. Feature-detected behind
+  `window.__TAURI__`; a complete no-op in a plain browser.
+- **Release pipeline:** `.github/workflows/release.yml` (GitHub Actions) on `workflow_dispatch` or a
+  `v*` tag — `tauri-apps/tauri-action` builds the NSIS installer, signs it, creates the Release, and
+  uploads installer + `.sig` + `latest.json`. Releasing = bump version → push → run the workflow.
+- **Tests:** build smoke gains 15 updater asserts (plugins/caps/config/pubkey/endpoint + frontend
+  flow) → **48/48**. HTML smoke unaffected → **349/349** (the update flow is inert without `__TAURI__`).
+- **Caveat:** only the **installed** app updates (the dev `target/release` exe and the browser build
+  don't). On Windows, an update = download + run the new signed NSIS installer (not a binary diff).
+
+---
+
 ## v0.7.13 — 2026-06-05
 
 ### Multi-file tabs — several open `.lpd` documents at once

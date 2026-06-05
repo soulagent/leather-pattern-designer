@@ -685,7 +685,13 @@ body.light .qs-note{color:#999}
       <div class="m-nest" style="padding-left:22px"><div class="m-act" style="padding:0" onclick="setSnapSize(10)">10 mm <span class="m-chk snapchk"> </span></div></div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.7.13</div>
+  <div class="m-item">Help
+    <div class="m-drop">
+      <div class="m-act" onclick="openHelp()">Help &amp; Shortcuts <span class="kb">?</span></div>
+      <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
+    </div>
+  </div>
+  <div id="app-title">Leather Pattern Designer v0.7.14</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -1079,7 +1085,7 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.7.13';
+const APP_VERSION = 'v0.7.14';
 const BUILD_TAG = 'birch-falcon-V7';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
@@ -4475,6 +4481,40 @@ function listenForSecondInstance(){
   if(!ev || !ev.listen) return;
   ev.listen('open-lpd', e=>{ const p=e.payload; if(Array.isArray(p)) onSecondInstanceFile(p[0], p[1]); });
 }
+// Desktop auto-update. `manual` (from the Help menu) surfaces "up to date" / errors; a silent
+// background call stays quiet. Checks the GitHub latest.json endpoint via tauri-plugin-updater;
+// on a newer signed build, confirms, downloads (with % progress), installs, and relaunches.
+// No-op in a plain browser — the menu item is hidden there too.
+async function checkForUpdates(manual){
+  const up = window.__TAURI__ && window.__TAURI__.updater;
+  if(!up || !up.check){
+    if(manual) alertModal('Updates are only available in the installed desktop app.', 'Check for Updates');
+    return;
+  }
+  try{
+    if(manual) flashSaved('Checking for updates…');
+    const update = await up.check();
+    if(!update){
+      if(manual) await alertModal("You're on the latest version ("+APP_VERSION+").", 'Up to Date');
+      return;
+    }
+    const notes = update.body ? ' Notes: '+String(update.body).replace(/\s+/g,' ').slice(0,200) : '';
+    const ok = await confirmModal('Version '+update.version+' is available — download and install now? '
+        +'The app will restart when it finishes.'+notes,
+        {title:'Update Available', ok:'Update Now', cancel:'Later'});
+    if(!ok) return;
+    let total=0, got=0;
+    await update.downloadAndInstall(e=>{
+      if(e.event==='Started'){ total=(e.data&&e.data.contentLength)||0; flashSaved('Downloading update…'); }
+      else if(e.event==='Progress'){ got+=(e.data&&e.data.chunkLength)||0; flashSaved(total?('Downloading '+Math.round(got/total*100)+'%'):'Downloading…'); }
+      else if(e.event==='Finished'){ flashSaved('Installing…'); }
+    });
+    const proc = window.__TAURI__ && window.__TAURI__.process;
+    if(proc && proc.relaunch) await proc.relaunch();
+  }catch(err){
+    if(manual) alertModal('Update check failed: '+((err&&err.message)||err), 'Update Error');
+  }
+}
 
 // New File with tabs never discards — it opens a fresh document. Reuses the current tab when it's
 // already a pristine empty Untitled (no shapes, no bound file); otherwise opens a new tab. Always
@@ -4920,6 +4960,7 @@ S._launchRecovery = readAutoSaveInfo(); // capture any recoverable session (offe
 showHome();                             // welcome screen on launch — never blocks
 openTauriLaunchFile();                  // desktop: if launched by double-clicking a .lpd, load it + skip Home
 listenForSecondInstance();              // desktop: route a 2nd .lpd launch into this window (single-instance)
+if(!isDesktop()){ const mu=document.getElementById('mi-update'); if(mu) mu.style.display='none'; } // updates = desktop only
 setupAutoSave();
 </script>
 </body>

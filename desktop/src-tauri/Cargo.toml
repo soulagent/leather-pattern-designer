@@ -1,6 +1,6 @@
 [package]
 name = "leather-pattern-designer"
-version = "0.7.13"
+version = "0.7.14"
 description = "Leather Pattern Designer - desktop wrapper (Tauri v2)"
 edition = "2021"
 rust-version = "1.77"
@@ -16,3 +16,6 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+serde_json = "1"  # required by generate_context! when the updater config is present
