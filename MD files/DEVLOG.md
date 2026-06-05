@@ -88,6 +88,12 @@ smoke tests.
 
 ## v0.7.16 — 2026-06-05
 
+### Right panel reorder
+Moved the contextual panels to the top: **Shape Properties → Stitching → Pen hints → Layers →
+Artboards** (was Layers/Artboards first). The selected-shape + active-tool controls are now at eye
+level; the structural lists sit below. Pure markup move in `#props` — section IDs unchanged, so all
+toggle/render JS is unaffected (panel features 106/106).
+
 ### Auto-update: silent check on launch
 The desktop app now quietly checks for updates ~1.5s after launch and only surfaces the prompt when a
 newer version exists — otherwise it starts normally. Reduces friction for users who never click the

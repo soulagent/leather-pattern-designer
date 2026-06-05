@@ -748,29 +748,6 @@ body.light .qs-note{color:#999}
 
   <!-- PROPS PANEL -->
   <div id="props">
-    <!-- Layers -->
-    <div class="p-sec">
-      <div class="p-hd" id="hd-layers" onclick="toggleSection('layers')">
-        <span>Layers</span><span class="p-tog">▾</span>
-      </div>
-      <div class="p-sec-body" id="body-layers">
-        <div id="layers-list"></div>
-        <p class="p-note">Grouped by artboard (click a header to collapse). Top row = front-most. Drag the ⠿ grip (or ▲/▼) to reorder within a group · eye = hide/show · lock = prevent selecting/moving · slider = fill (0 = outline, 100 = solid). Click a row to select.</p>
-      </div>
-    </div>
-
-    <!-- Artboards -->
-    <div class="p-sec">
-      <div class="p-hd" id="hd-artboards" onclick="toggleSection('artboards')">
-        <span>Artboards</span><span class="p-tog">▾</span>
-      </div>
-      <div class="p-sec-body" id="body-artboards">
-        <div id="artboards-list"></div>
-        <button class="p-btn" style="width:100%;margin-top:6px" onclick="addArtboard()">+ Add Artboard</button>
-        <p class="p-note">● = active (its page size/name is what Settings ▸ Page edits, and what prints). Click a row to make it active. Use the <b>Artboard tool</b> (A) to drag artboards on the canvas.</p>
-      </div>
-    </div>
-
     <!-- Shape Properties -->
     <div class="p-sec">
       <div class="p-hd" id="hd-shape" onclick="toggleSection('shape')">
@@ -940,6 +917,29 @@ body.light .qs-note{color:#999}
           <b>Backspace</b> — undo last point<br>
           <b>Esc</b> — cancel
         </p>
+      </div>
+    </div>
+
+    <!-- Layers -->
+    <div class="p-sec">
+      <div class="p-hd" id="hd-layers" onclick="toggleSection('layers')">
+        <span>Layers</span><span class="p-tog">▾</span>
+      </div>
+      <div class="p-sec-body" id="body-layers">
+        <div id="layers-list"></div>
+        <p class="p-note">Grouped by artboard (click a header to collapse). Top row = front-most. Drag the ⠿ grip (or ▲/▼) to reorder within a group · eye = hide/show · lock = prevent selecting/moving · slider = fill (0 = outline, 100 = solid). Click a row to select.</p>
+      </div>
+    </div>
+
+    <!-- Artboards -->
+    <div class="p-sec">
+      <div class="p-hd" id="hd-artboards" onclick="toggleSection('artboards')">
+        <span>Artboards</span><span class="p-tog">▾</span>
+      </div>
+      <div class="p-sec-body" id="body-artboards">
+        <div id="artboards-list"></div>
+        <button class="p-btn" style="width:100%;margin-top:6px" onclick="addArtboard()">+ Add Artboard</button>
+        <p class="p-note">● = active (its page size/name is what Settings ▸ Page edits, and what prints). Click a row to make it active. Use the <b>Artboard tool</b> (A) to drag artboards on the canvas.</p>
       </div>
     </div>
   </div><!-- #props -->
