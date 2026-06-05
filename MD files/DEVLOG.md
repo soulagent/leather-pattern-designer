@@ -9,6 +9,22 @@ Save format: `.lpat` (JSON). Also exports `.svg` and prints to PDF via browser d
 
 _What's built and what's still wanted. The dated changelog (newest first) is below._
 
+### ▶ Open TODOs (carry-forward, not started)
+Remaining after the v0.7.20 accessibility/UX pass:
+- [ ] **Promote remaining clickable `<div>`s to real controls.** Menu actions + tab-close are now
+  keyboard-activatable, but other `onclick` divs (layer rows, etc.) still aren't focusable/announced —
+  give them `role="button"` + `tabindex=0` + Enter/Space (or `<button>`). _(a11y; details in the UX
+  backlog below.)_
+- [ ] **`prefers-reduced-motion` support.** Soften/disable transitions+animations under `reduce`.
+  Deliberately deferred as low priority.
+- [ ] **Finish palette tokenization.** Only text + accent are on CSS variables; migrate the remaining
+  surface/border literals (`#12122a`, `#1e1e38`, `#2a2a4a`, …) onto the `--panel`/`--raised`/`--border`
+  tokens so the whole palette is single-sourced (helps the eventual C++ port too).
+- [ ] **Re-sync the `ui-language` skill / STYLE_GUIDE** if/when the user fine-tunes UI elements.
+
+_(Larger separate efforts are tracked in their own memories: the 3D companion app and the C++
+migration — see the project memory.)_
+
 ### Already built (highlights)
 Rect + pen/bezier tools · per-edge stitching with even-distributed holes & geometric corner
 handling · per-shape colour · per-corner rect radii · convert-to-editable-path · per-anchor
