@@ -21,7 +21,7 @@
   /* semantic + canvas */
   --success:#44aa88; --drop:#4dd2ff; --shape:#3a7bd5; --stitch:#e67e22;
 }
-body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#eee;display:flex;flex-direction:column;height:100vh;overflow:hidden;user-select:none}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh;overflow:hidden;user-select:none}
 /* Visible keyboard focus ring — only for keyboard focus (:focus-visible), never on mouse click.
    Text inputs keep their own accent-border :focus style (higher specificity wins, so no double ring);
    this covers buttons, menu items, list rows and other focusables. Modern browsers shape the outline
@@ -29,15 +29,15 @@ body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#eee;display:flex
 :focus-visible{outline:2px solid var(--accent-bright);outline-offset:2px}
 
 /* ── MENUBAR ── */
-#menubar{background:#12122a;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;height:30px;padding:0 6px;gap:2px;flex-shrink:0}
+#menubar{background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;height:30px;padding:0 6px;gap:2px;flex-shrink:0}
 
 /* ── TAB BAR ── */
-#tabbar{background:#0d0d1f;border-bottom:1px solid #2a2a4a;display:flex;align-items:stretch;height:30px;padding:0 4px;gap:3px;flex-shrink:0;overflow-x:auto;overflow-y:hidden}
+#tabbar{background:var(--canvas);border-bottom:1px solid var(--border);display:flex;align-items:stretch;height:30px;padding:0 4px;gap:3px;flex-shrink:0;overflow-x:auto;overflow-y:hidden}
 #tabbar::-webkit-scrollbar{height:4px}
-#tabbar::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:2px}
-.tab{display:flex;align-items:center;gap:6px;max-width:200px;padding:0 6px 0 10px;margin-top:4px;border:1px solid #2a2a4a;border-bottom:none;border-radius:6px 6px 0 0;background:#12122a;color:var(--text-2);font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+#tabbar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.tab{display:flex;align-items:center;gap:6px;max-width:200px;padding:0 6px 0 10px;margin-top:4px;border:1px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;background:var(--panel);color:var(--text-2);font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .tab:hover{background:#1a1a36;color:#ddd}
-.tab.active{background:#1a1a2e;color:#fff;border-color:#3a3a5a}
+.tab.active{background:var(--bg);color:#fff;border-color:#3a3a5a}
 .tab-name{overflow:hidden;text-overflow:ellipsis;max-width:150px}
 .tab-dot{color:#e0506a;font-size:14px;line-height:1;margin-left:-2px}        /* unsaved marker */
 .tab-x{width:16px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:3px;font-size:13px;color:var(--text-2);flex-shrink:0}
@@ -45,11 +45,11 @@ body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#eee;display:flex
 .tab-new{display:flex;align-items:center;justify-content:center;width:26px;margin-top:4px;border:none;background:none;color:var(--text-2);font-size:18px;cursor:pointer;border-radius:5px;flex-shrink:0}
 .tab-new:hover{background:#1a1a36;color:#fff}
 .m-item{position:relative;padding:4px 10px;cursor:pointer;border-radius:4px;font-size:13px;white-space:nowrap}
-.m-item:hover,.m-item:focus-within,.m-item.open{background:#2a2a4a}
-.m-drop{display:none;position:absolute;top:100%;left:0;background:#1e1e38;border:1px solid #2a2a4a;border-radius:5px;min-width:200px;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.55);padding:3px 0}
+.m-item:hover,.m-item:focus-within,.m-item.open{background:var(--hover)}
+.m-drop{display:none;position:absolute;top:100%;left:0;background:var(--raised);border:1px solid var(--border);border-radius:5px;min-width:200px;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.55);padding:3px 0}
 .m-item.open .m-drop{display:block}/* click-to-open: dropdown shows only when JS adds .open (no hover-close) */
 .m-act{padding:6px 14px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:14px;text-align:left}
-.m-act:hover{background:#2a2a4a}
+.m-act:hover{background:var(--hover)}
 /* text sits first (left); shortcut + checkmark are pushed to the right edge.
    When an item has both, the kb absorbs the free space and the chk follows it,
    so checkmarks line up on the far right and shortcuts just inside them. */
@@ -58,11 +58,11 @@ body{font-family:system-ui,sans-serif;background:#1a1a2e;color:#eee;display:flex
 .m-act .kb{color:var(--text-faint);font-size:11px;flex-shrink:0}
 .m-chk{display:inline-block;width:14px;text-align:center;color:#e74c3c;flex-shrink:0}
 .m-nest{position:relative;padding:6px 14px;cursor:pointer;font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:20px}
-.m-nest:hover{background:#2a2a4a}
+.m-nest:hover{background:var(--hover)}
 .m-nest>.m-act{flex:1}/* stretch the inner action so its right-aligned checkmark hits the dropdown edge */
 .m-nest>.m-drop{display:none;position:absolute;left:100%;top:-3px;min-width:120px}
 .m-nest:hover>.m-drop{display:block}
-.m-sep{height:1px;background:#2a2a4a;margin:3px 6px}
+.m-sep{height:1px;background:var(--border);margin:3px 6px}
 .m-grp-lbl{padding:3px 14px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-faint);cursor:default}
 #app-title{margin-left:auto;font-size:11px;color:var(--text-faint);padding-right:10px}
 /* standalone light/dark toggle, top-right of the menubar */
@@ -78,15 +78,15 @@ body.light .theme-knob{transform:translateX(18px);background:#c0392b}
 #main{display:flex;flex:1;overflow:hidden}
 
 /* ── TOOLBAR ── */
-#toolbar{background:#12122a;border-right:1px solid #2a2a4a;width:46px;display:flex;flex-direction:column;align-items:center;padding:6px 0;gap:3px;flex-shrink:0}
+#toolbar{background:var(--panel);border-right:1px solid var(--border);width:46px;display:flex;flex-direction:column;align-items:center;padding:6px 0;gap:3px;flex-shrink:0}
 .t-btn{width:34px;height:34px;border-radius:6px;border:1px solid transparent;background:transparent;color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:background .12s,color .12s;position:relative}
-.t-btn:hover{background:#2a2a4a;color:#fff}
+.t-btn:hover{background:var(--hover);color:#fff}
 .t-btn.active{background:#c0392b;border-color:#e74c3c;color:#fff}
-.t-sep{width:60%;height:1px;background:#2a2a4a;margin:2px 0}
-.t-btn[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:42px;top:50%;transform:translateY(-50%);background:#1e1e38;border:1px solid #2a2a4a;padding:3px 8px;border-radius:4px;font-size:11px;white-space:nowrap;pointer-events:none;z-index:999;color:#eee}
+.t-sep{width:60%;height:1px;background:var(--border);margin:2px 0}
+.t-btn[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:42px;top:50%;transform:translateY(-50%);background:var(--raised);border:1px solid var(--border);padding:3px 8px;border-radius:4px;font-size:11px;white-space:nowrap;pointer-events:none;z-index:999;color:#eee}
 
 /* ── CANVAS ── */
-#canvas-wrap{flex:1;position:relative;overflow:hidden;background:#0d0d1f;cursor:crosshair}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--canvas);cursor:crosshair}
 #canvas-wrap.cur-select{cursor:default}
 #canvas-wrap.cur-text{cursor:text}
 #canvas-wrap.cur-grab{cursor:grab}
@@ -94,11 +94,11 @@ body.light .theme-knob{transform:translateX(18px);background:#c0392b}
 #cvs{width:100%;height:100%;display:block}
 
 /* ── PROPS PANEL ── */
-#props{background:#12122a;border-left:1px solid #2a2a4a;width:210px;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+#props{background:var(--panel);border-left:1px solid var(--border);width:210px;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
 #props-resize{width:6px;flex-shrink:0;cursor:col-resize;background:transparent;position:relative;z-index:5}
-#props-resize:hover,#props-resize.dragging{background:#2a2a4a}
+#props-resize:hover,#props-resize.dragging{background:var(--hover)}
 body.col-resizing{cursor:col-resize;user-select:none}
-.p-sec{border-bottom:1px solid #1e1e38}
+.p-sec{border-bottom:1px solid var(--raised)}
 .p-hd{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);padding:9px 11px 5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none}
 .p-hd:hover{color:#ccc}
 .p-tog{font-size:11px;color:var(--text-faint);line-height:1;transition:transform .15s}
@@ -115,18 +115,18 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .p-fl{font-size:11px;color:var(--text-muted);flex-shrink:0;width:13px;text-align:center}
 .p-row{display:flex;align-items:center;gap:7px;margin-bottom:5px}
 .p-lbl{font-size:11px;color:var(--text-2);width:52px;flex-shrink:0}
-.p-inp{background:#1e1e38;border:1px solid #2a2a4a;color:#eee;padding:3px 6px;border-radius:4px;font-size:12px;flex:1;min-width:0}
+.p-inp{background:var(--raised);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px;flex:1;min-width:0}
 .p-inp:focus{outline:none;border-color:#e74c3c}
 .p-inp[readonly]{color:var(--text-muted);cursor:default}
-.p-sel{background:#1e1e38;border:1px solid #2a2a4a;color:#eee;padding:3px 5px;border-radius:4px;font-size:12px;flex:1;cursor:pointer}
+.p-sel{background:var(--raised);border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:4px;font-size:12px;flex:1;cursor:pointer}
 .p-ck-row{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text-2);margin-bottom:5px;cursor:pointer}
 .p-ck-row input{accent-color:#e74c3c;cursor:pointer}
 .p-note{font-size:10px;color:var(--text-faint);margin-top:4px;line-height:1.4}
-.p-btn{padding:3px 10px;border-radius:4px;border:1px solid #2a2a4a;background:#1e1e38;color:#ccc;font-size:11px;cursor:pointer;transition:background .12s}
+.p-btn{padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--raised);color:#ccc;font-size:11px;cursor:pointer;transition:background .12s}
 .p-btn:hover{background:var(--accent-hover);border-color:var(--accent-hover);color:#fff}
 .p-btn.on{background:#c0392b;border-color:#e74c3c;color:#fff}
 .align-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;width:96px;margin-top:6px}
-.align-cell{height:26px;border:1px solid #2a2a4a;background:#1e1e38;border-radius:3px;cursor:pointer;display:flex;flex-direction:column;gap:2px;padding:4px;box-sizing:border-box;transition:background .12s}
+.align-cell{height:26px;border:1px solid var(--border);background:var(--raised);border-radius:3px;cursor:pointer;display:flex;flex-direction:column;gap:2px;padding:4px;box-sizing:border-box;transition:background .12s}
 .align-cell:hover{background:#26264a}
 .align-cell.on{background:#3a1a24;border-color:#e74c3c}
 .align-cell i{display:block;height:2px;border-radius:1px;background:#777}
@@ -161,7 +161,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .lay-name{flex:1;font-size:11px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lay-row.sel .lay-name{color:#fff}
 .lay-btns{display:flex;flex-direction:column;gap:0;flex-shrink:0}
-.lay-arr{width:15px;height:11px;line-height:9px;padding:0;font-size:8px;border:1px solid #2a2a4a;background:#1e1e38;color:#aaa;cursor:pointer;border-radius:2px}
+.lay-arr{width:15px;height:11px;line-height:9px;padding:0;font-size:8px;border:1px solid var(--border);background:var(--raised);color:#aaa;cursor:pointer;border-radius:2px}
 .lay-arr:hover:not(:disabled){background:#3a3a6a;color:#fff}
 .lay-arr:disabled{opacity:.3;cursor:default}
 .lay-tog{display:flex;align-items:center;justify-content:center;width:17px;height:17px;padding:0;flex-shrink:0;border:1px solid transparent;background:none;color:var(--text-muted);cursor:pointer;border-radius:3px}
@@ -174,25 +174,25 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .lay-op-v{font-size:9px;color:var(--text-muted);width:26px;text-align:right;flex-shrink:0}
 
 /* ── STATUSBAR ── */
-#status{background:#12122a;border-top:1px solid #2a2a4a;height:22px;display:flex;align-items:center;padding:0 10px;gap:16px;font-size:10px;color:var(--text-muted);flex-shrink:0}
+#status{background:var(--panel);border-top:1px solid var(--border);height:22px;display:flex;align-items:center;padding:0 10px;gap:16px;font-size:10px;color:var(--text-muted);flex-shrink:0}
 #st-autosave{color:#4a8}
 
 /* ── MODAL ── */
 #modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;align-items:center;justify-content:center}
 #modal-bg.open{display:flex}
-.modal{background:#1e1e38;border:1px solid #2a2a4a;border-radius:8px;padding:20px;min-width:320px;max-width:90vw;max-height:90vh;overflow-y:auto}
+.modal{background:var(--raised);border:1px solid var(--border);border-radius:8px;padding:20px;min-width:320px;max-width:90vw;max-height:90vh;overflow-y:auto}
 .modal h3{margin-bottom:16px;font-size:15px}
 .m-row{display:flex;align-items:center;gap:10px;margin-bottom:11px}
 .m-lbl{width:180px;font-size:12px;color:var(--text-2);flex-shrink:0}
-.m-inp{background:#12122a;border:1px solid #2a2a4a;color:#eee;padding:5px 8px;border-radius:4px;font-size:12px;flex:1}
+.m-inp{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px;flex:1}
 .m-inp:focus{outline:none;border-color:#e74c3c}
 .m-note{font-size:10px;color:var(--text-faint);padding:0 0 10px;line-height:1.5}
-.m-section-hd{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-heading);margin:10px 0 8px;border-top:1px solid #2a2a4a;padding-top:10px}
+.m-section-hd{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-heading);margin:10px 0 8px;border-top:1px solid var(--border);padding-top:10px}
 .modal-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 .btn-ok{padding:6px 16px;background:#c0392b;border:none;border-radius:4px;color:#fff;font-size:12px;cursor:pointer}
 .btn-ok:hover{background:var(--accent-hover)}
-.btn-cancel{padding:6px 14px;background:#1a1a2e;border:1px solid #2a2a4a;border-radius:4px;color:#ccc;font-size:12px;cursor:pointer}
-.btn-cancel:hover{background:#2a2a4a}
+.btn-cancel{padding:6px 14px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:#ccc;font-size:12px;cursor:pointer}
+.btn-cancel:hover{background:var(--hover)}
 
 /* ── SVG classes ── */
 .sh-fill{fill:rgba(255,255,255,.04)}
@@ -256,7 +256,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .home-recents{max-width:430px;margin:0 auto;text-align:left}
 .home-recents-h{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-heading);font-weight:700;margin-bottom:9px;padding-left:2px}
 .home-recent{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;margin-bottom:6px;border-radius:7px;
-  border:1px solid #232342;background:#16162c;color:#cfcfe4;font-size:13px;cursor:pointer;transition:background .12s,border-color .12s;text-align:left}
+  border:1px solid #232342;background:var(--dialog);color:#cfcfe4;font-size:13px;cursor:pointer;transition:background .12s,border-color .12s;text-align:left}
 .home-recent:hover{background:#22223f;border-color:#33335a}
 .home-recent-ic{color:#e67e22;flex-shrink:0}
 .home-recent-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -274,14 +274,14 @@ body.light #home-ver-build{color:#7a7a96}
 /* ── THEMED CONFIRM / ALERT DIALOG ── */
 #confirm-bg{display:none;position:fixed;inset:0;z-index:11000;background:rgba(0,0,0,.6);align-items:center;justify-content:center}
 #confirm-bg.open{display:flex}
-.confirm-box{position:relative;background:#16162c;border:1px solid #2f2f52;border-radius:10px;
+.confirm-box{position:relative;background:var(--dialog);border:1px solid #2f2f52;border-radius:10px;
   min-width:330px;max-width:90vw;box-shadow:0 12px 50px rgba(0,0,0,.6)}
 #confirm-stitch{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .confirm-inner{position:relative;z-index:1;padding:26px 30px 22px;text-align:center}
 .confirm-inner h3{font-size:15px;color:#f2f2f7;margin:0 0 8px;font-weight:700}
 .confirm-inner p{font-size:13px;color:#c2c2d6;margin:0 0 20px;line-height:1.5;white-space:pre-line}
 .confirm-actions{display:flex;gap:10px;justify-content:center}
-.cf-btn{padding:9px 20px;border-radius:7px;border:1px solid #2f2f52;background:#1e1e38;color:#dcdcf0;font-size:13px;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s,transform .1s}
+.cf-btn{padding:9px 20px;border-radius:7px;border:1px solid #2f2f52;background:var(--raised);color:#dcdcf0;font-size:13px;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s,transform .1s}
 .cf-btn:hover{transform:translateY(-1px)}
 .cf-cancel:hover{background:#26264a}
 .cf-primary{background:#c0392b;border-color:#e74c3c;color:#fff}
@@ -292,16 +292,16 @@ body.light #home-ver-build{color:#7a7a96}
 /* ── HELP / KEYBOARD-REFERENCE OVERLAY (? key) ── */
 #help-bg{display:none;position:fixed;inset:0;z-index:11500;background:rgba(0,0,0,.62);align-items:center;justify-content:center;padding:24px}
 #help-bg.open{display:flex}
-.help-panel{display:flex;flex-direction:column;width:760px;max-width:100%;max-height:88vh;background:#16162c;border:1px solid #2f2f52;border-radius:12px;box-shadow:0 16px 60px rgba(0,0,0,.6);overflow:hidden}
-.help-head{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #2a2a4a;flex-shrink:0}
+.help-panel{display:flex;flex-direction:column;width:760px;max-width:100%;max-height:88vh;background:var(--dialog);border:1px solid #2f2f52;border-radius:12px;box-shadow:0 16px 60px rgba(0,0,0,.6);overflow:hidden}
+.help-head{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
 .help-head h2{font-size:16px;font-weight:700;color:#f2f2f7;margin:0;flex:1}
 .help-head .help-hint{font-size:11px;color:var(--text-faint)}
-.help-x{width:28px;height:28px;border-radius:6px;border:1px solid #2f2f52;background:#1e1e38;color:#cfcfe4;font-size:15px;cursor:pointer;flex-shrink:0;line-height:1}
+.help-x{width:28px;height:28px;border-radius:6px;border:1px solid #2f2f52;background:var(--raised);color:#cfcfe4;font-size:15px;cursor:pointer;flex-shrink:0;line-height:1}
 .help-x:hover{background:#c0392b;border-color:#e74c3c;color:#fff}
 .help-body{padding:6px 20px 20px;overflow-y:auto}
 .help-cols{column-width:330px;column-gap:26px}
 .help-sec{break-inside:avoid;margin-top:18px}
-.help-sec-h{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#e07a5f;font-weight:700;margin-bottom:7px;padding-bottom:4px;border-bottom:1px solid #2a2a4a}
+.help-sec-h{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#e07a5f;font-weight:700;margin-bottom:7px;padding-bottom:4px;border-bottom:1px solid var(--border)}
 .help-row{display:flex;align-items:baseline;gap:10px;font-size:12px;line-height:1.45;padding:2px 0}
 .help-row .hk{flex:0 0 auto;min-width:84px;text-align:right;color:var(--text-2)}
 .help-row .hd{flex:1;color:#c2c2d6}
@@ -311,11 +311,11 @@ kbd.k{display:inline-block;font-family:monospace;font-size:11px;background:#2323
 /* ── QUICK START (first-time user experience) ── */
 #qs-bg{display:none;position:fixed;inset:0;z-index:11600;background:rgba(0,0,0,.62);align-items:center;justify-content:center;padding:24px}
 #qs-bg.open{display:flex}
-.qs-panel{display:flex;flex-direction:column;width:680px;max-width:100%;max-height:88vh;background:#16162c;border:1px solid #2f2f52;border-radius:12px;box-shadow:0 16px 60px rgba(0,0,0,.6);overflow:hidden}
-.qs-head{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #2a2a4a;flex-shrink:0}
+.qs-panel{display:flex;flex-direction:column;width:680px;max-width:100%;max-height:88vh;background:var(--dialog);border:1px solid #2f2f52;border-radius:12px;box-shadow:0 16px 60px rgba(0,0,0,.6);overflow:hidden}
+.qs-head{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
 .qs-head h2{font-size:16px;font-weight:700;color:#f2f2f7;margin:0;flex:1}
 .qs-head .qs-sub{font-size:11px;color:var(--text-faint)}
-.qs-x{width:28px;height:28px;border-radius:6px;border:1px solid #2f2f52;background:#1e1e38;color:#cfcfe4;font-size:15px;cursor:pointer;flex-shrink:0;line-height:1}
+.qs-x{width:28px;height:28px;border-radius:6px;border:1px solid #2f2f52;background:var(--raised);color:#cfcfe4;font-size:15px;cursor:pointer;flex-shrink:0;line-height:1}
 .qs-x:hover{background:#c0392b;border-color:#e74c3c;color:#fff}
 .qs-body{padding:6px 20px;overflow-y:auto}
 .qs-step{display:flex;gap:15px;align-items:flex-start;padding:14px 0;border-bottom:1px solid #21213c}
@@ -326,7 +326,7 @@ kbd.k{display:inline-block;font-family:monospace;font-size:11px;background:#2323
 .qs-num{font-size:10px;font-weight:700;color:#e67e22;letter-spacing:.07em;text-transform:uppercase}
 .qs-step h3{font-size:14px;font-weight:700;color:#eaeaf4;margin:1px 0 4px}
 .qs-step p{font-size:12.5px;line-height:1.5;color:var(--text-2);margin:0}
-.qs-foot{display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid #2a2a4a;flex-shrink:0}
+.qs-foot{display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0}
 .qs-note{flex:1;font-size:11.5px;color:var(--text-faint);line-height:1.4}
 .qs-link{background:none;border:none;color:#5aa9ff;font-size:12.5px;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap}
 .qs-link:hover{color:#84c0ff}
@@ -343,39 +343,29 @@ body.light{
   --bg:#eef0f4; --canvas:#fbfbfd; --panel:#e4e6ee; --raised:#fff; --dialog:#fff;
   --hover:#d4d7e4; --border:#cdd0dc; --border-soft:#dde0ea;
   --text:#23232e; --text-2:#3f3f4a; --text-muted:#5c5c68; --text-faint:#5a5a66; --text-heading:#54546a;
-  --stitch:#b5640f;
-  background:#eef0f4;color:#23232e}
-/* menubar */
-body.light #menubar{background:#e4e6ee;border-bottom-color:#cdd0dc}
-body.light .m-item:hover,body.light .m-item:focus-within,body.light .m-item.open{background:#d4d7e4}
+  --stitch:#b5640f}
+/* menubar (surfaces/borders now inherit re-pointed tokens; only non-token shades remain) */
 body.light .m-drop{background:#fff;border-color:#cdd0dc;box-shadow:0 6px 20px rgba(40,40,70,.18)}
 body.light .m-act:hover,body.light .m-nest:hover{background:#e6e8f2}
 body.light .m-sep{background:#dde0ea}
 body.light #theme-toggle{color:#6a6a82}
 body.light #theme-toggle:hover,body.light #theme-toggle:focus-visible{color:#222}
 /* toolbar (the .active red button is shared with dark) */
-body.light #toolbar{background:#e4e6ee;border-right-color:#cdd0dc}
 body.light .t-btn:hover{background:#d4d7e4;color:#111}
 body.light .t-sep{background:#dde0ea}
 body.light .t-btn[data-tip]:hover::after{background:#2a2a3a;color:#fff;border-color:#2a2a3a}
-/* canvas */
-body.light #canvas-wrap{background:#fbfbfd}
-body.light #tabbar{background:#eceef4;border-bottom-color:#cdd0dc}
-body.light .tab{background:#e4e6ee;border-color:#cdd0dc}
+/* canvas / tabs (tab base surface+border inherit tokens; only distinct shades remain) */
+body.light #tabbar{background:#eceef4}
 body.light .tab:hover{background:#dfe2ec;color:#223}
 body.light .tab.active{background:#fbfbfd;color:#112;border-color:#b9bccc}
 body.light .tab-x:hover{background:#c9ccda;color:#000}
 body.light .tab-new:hover{background:#dfe2ec;color:#112}
 /* props panel */
-body.light #props{background:#e4e6ee;border-left-color:#cdd0dc}
-body.light #props-resize:hover,body.light #props-resize.dragging{background:#d4d7e4}
 body.light .p-sec{border-bottom-color:#dde0ea}
 body.light .p-hd:hover{color:#333}
 body.light .p-dim-sum{color:#33384a;background:#dfe2ee}
 body.light .p-grp{border-bottom-color:#d2d5e2}
-body.light .p-inp,body.light .p-sel{background:#fff;border-color:#cdd0dc;color:#23232e}
 body.light .p-btn{background:#fff;border-color:#cdd0dc;color:#444}
-body.light .align-cell{background:#fff;border-color:#cdd0dc}
 body.light .align-cell:hover{background:#eceefa}
 body.light .align-cell i{background:#888}
 /* layers */
@@ -389,10 +379,7 @@ body.light .lay-arr:hover:not(:disabled){background:#c8cce8;color:#111}
 body.light .lay-tog:hover{background:#d8dcf0;color:#222}
 body.light .lay-tog.on{color:#3a3a6a}
 body.light .lay-tog.lock-on{color:#c75a1c}
-/* status bar */
-body.light #status{background:#e4e6ee;border-top-color:#cdd0dc}
-/* settings / page modal */
-body.light .modal{background:#fff;border-color:#cdd0dc}
+/* settings / page modal (.modal surface+border inherit tokens) */
 body.light .m-inp{background:#fff;border-color:#cdd0dc;color:#23232e}
 body.light .m-section-hd{border-top-color:#dde0ea}
 body.light .btn-cancel{background:#eef0f6;border-color:#cdd0dc;color:#444}
@@ -696,7 +683,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.7.20</div>
+  <div id="app-title">Leather Pattern Designer v0.7.22</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -802,6 +789,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
           <div id="grp-text" style="display:none">
             <div class="p-grp">Text</div>
             <textarea class="p-inp" id="pi-text" rows="3" placeholder="Type text…" style="width:100%;resize:vertical;font-family:system-ui" onfocus="beginTextEdit()" oninput="liveTextInput()" onblur="endTextEdit()"></textarea>
+            <div class="p-note">Select text + <b>B</b>/<i>I</i> to style part of it, or type <code>**bold**</code>, <code>*italic*</code>.</div>
             <div class="p-row" style="margin-top:6px"><span class="p-lbl">Font size</span><input class="p-inp" id="pi-fontsize" type="number" step="0.5" min="1" onchange="applyTextProps()"><span style="font-size:11px;color:var(--text-muted);margin-left:4px">mm</span></div>
             <div class="p-row" style="gap:6px;display:flex;margin-top:5px">
               <button class="p-btn" id="pi-bold" style="flex:1;font-weight:700" title="Bold" onclick="toggleTextStyle('bold')">B</button>
@@ -820,7 +808,8 @@ body.light .qs-foot{border-top-color:#dde0ea}
                 <button class="align-cell" data-v="bottom" data-h="right" title="Bottom right" onclick="setTextAnchor('bottom','right')" style="justify-content:flex-end;align-items:flex-end"><i style="width:75%"></i><i style="width:45%"></i></button>
               </div>
             </div>
-            <label class="p-ck-row" style="margin-top:8px"><input type="checkbox" id="pi-fill" onchange="applyTextProps()"> Fill</label>
+            <label class="p-ck-row" style="margin-top:8px"><input type="checkbox" id="pi-autogrow" onchange="toggleAutoGrow()"> Auto-height <span style="color:var(--text-faint);font-size:10px">(box fits text)</span></label>
+            <label class="p-ck-row"><input type="checkbox" id="pi-fill" onchange="applyTextProps()"> Fill</label>
             <label class="p-ck-row"><input type="checkbox" id="pi-outline" onchange="applyTextProps()"> Outline</label>
             <div id="row-outline" style="display:none">
               <div class="p-row"><span class="p-lbl">Outline width</span><input class="p-inp" id="pi-outlinew" type="number" step="0.05" min="0.05" onchange="applyTextProps()"><span style="font-size:11px;color:var(--text-muted);margin-left:4px">mm</span></div>
@@ -1100,7 +1089,7 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.7.20';
+const APP_VERSION = 'v0.7.22';
 const BUILD_TAG = 'maple-osprey-V8';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
@@ -1143,6 +1132,7 @@ function normText(s){
   if(!['left','center','right'].includes(s.align)) s.align='left';   // horizontal alignment (v0.5.1)
   if(!['top','middle','bottom'].includes(s.valign)) s.valign='top';  // vertical alignment (v0.5.2)
   if(s.fill===undefined) s.fill=true;     // fill on by default; off → outline-only text (v0.5.1)
+  s.autoGrow=!!s.autoGrow;                 // box height follows content when on (v0.7.22)
   return s;
 }
 // Backfill flags shared by every shape type (defensive on load; v14 added hidden/locked).
@@ -1150,28 +1140,82 @@ function normShape(s){ s.hidden=!!s.hidden; s.locked=!!s.locked; return normText
 function makeTextShape(x,y,w,h){
   return normText({type:'text', x, y, w, h, text:'', fontSize:TEXT_DEFAULT_FONT,
     bold:false, italic:false, outline:false, outlineColor:'#000000', outlineWidth:0.4,
-    align:'left', valign:'top', fill:true, color:DEFAULT_SHAPE_COLOR});
+    align:'left', valign:'top', fill:true, autoGrow:false, color:DEFAULT_SHAPE_COLOR});
 }
 function textPad(s){ return Math.min(s.fontSize*0.25, s.w*0.12, s.h*0.12); } // inner inset, mm
-// Wrap the text content to the box width. Explicit '\n' break paragraphs (and blank lines are
-// kept); within each paragraph words greedy-wrap to the inner width at the box's own weight.
-// A single word wider than the box is left to spill (horizontal spill is acceptable).
-function wrapTextLines(s){
-  const weight=s.bold?700:400, pad=textPad(s);
-  const innerW=Math.max(0.1, s.w-2*pad);
+// ── Inline emphasis markup (per-run bold/italic within one box, v0.7.22) ──
+// Markers TOGGLE style relative to the box baseline: `*italic*`, `**bold**`, `***both***`.
+// s.text stays a plain string (save/load + both text editors unchanged); only the renderer
+// turns the markers into styled <tspan> runs. A lone/unbalanced marker just runs to the end
+// of its paragraph. No escape for a literal '*' (rare in leather-pattern labels).
+function parseSegments(str, baseB, baseI){
+  const segs=[]; let b=baseB, i=baseI, buf='';
+  const flush=()=>{ if(buf){ segs.push({t:buf,b,i}); buf=''; } };
+  for(let k=0;k<str.length;){
+    if(str[k]==='*'){
+      let n=1; while(str[k+n]==='*'&&n<3) n++;   // 1=italic, 2=bold, 3=both
+      flush();
+      if(n>=3){ b=!b; i=!i; } else if(n===2){ b=!b; } else { i=!i; }
+      k+=n;
+    } else buf+=str[k++];
+  }
+  flush();
+  return segs;
+}
+// Split styled segments into measured words (a word may span style runs, e.g. `a**b**`).
+function segWords(segs, fs){
+  const words=[]; let cur=null;
+  for(const sg of segs){
+    for(const part of sg.t.split(/(\s+)/)){
+      if(part==='') continue;
+      if(/^\s+$/.test(part)){ if(cur){ words.push(cur); cur=null; } continue; }
+      if(!cur) cur={segs:[],w:0};
+      cur.segs.push({t:part,b:sg.b,i:sg.i});
+      cur.w+=measureTextW(part, fs, sg.b?700:400, sg.i);
+    }
+  }
+  if(cur) words.push(cur);
+  return words;
+}
+// Wrap the box content to its inner width, returning STYLED lines: each line is an array of
+// {t,b,i} segments (inter-word spaces baked onto the preceding segment). `padOverride` lets the
+// auto-height path use a height-independent inset. Explicit '\n' break paragraphs (blank lines
+// kept); a single word wider than the box is left to spill (horizontal spill is acceptable).
+function wrapStyledLines(s, padOverride){
+  const pad=padOverride!=null?padOverride:textPad(s);
+  const innerW=Math.max(0.1, s.w-2*pad), fs=s.fontSize, baseB=!!s.bold, baseI=!!s.italic;
+  const spaceW=measureTextW(' ', fs, baseB?700:400, baseI);
   const out=[];
   for(const para of String(s.text==null?'':s.text).split('\n')){
-    const words=para.split(/\s+/).filter(Boolean);
-    if(!words.length){ out.push(''); continue; } // preserve blank lines
-    let cur='';
+    const words=segWords(parseSegments(para, baseB, baseI), fs);
+    if(!words.length){ out.push([{t:'',b:baseB,i:baseI}]); continue; } // preserve blank lines
+    let line=[], lineW=0;
+    const push=wd=>{
+      if(line.length){ line[line.length-1].t+=' '; lineW+=spaceW; } // carry the space on the prior seg
+      for(const sg of wd.segs) line.push({...sg});
+      lineW+=wd.w;
+    };
     for(const wd of words){
-      const t=cur?cur+' '+wd:wd;
-      if(!cur || measureTextW(t, s.fontSize, weight)<=innerW) cur=t;
-      else { out.push(cur); cur=wd; }
+      const add=(line.length?spaceW:0)+wd.w;
+      if(line.length && lineW+add>innerW){ out.push(line); line=[]; lineW=0; }
+      push(wd);
     }
-    out.push(cur);
+    out.push(line);
   }
-  return out.length?out:[''];
+  return out.length?out:[[{t:'',b:baseB,i:baseI}]];
+}
+// Plain wrapped lines (markup stripped) — used for height/line-count + the smoke tests. Derived
+// from the styled wrap so the line count always matches what actually renders.
+function wrapTextLines(s, padOverride){
+  return wrapStyledLines(s, padOverride).map(line=>line.map(sg=>sg.t).join(''));
+}
+// Auto-height: when s.autoGrow is on, the box height follows its wrapped content (top-anchored),
+// using a height-independent inset so the size is stable. Called at every edit that changes the
+// wrap; renderText re-applies it too as a safety net.
+function reflowTextHeight(s){
+  if(!s||s.type!=='text'||!s.autoGrow) return;
+  const pad=Math.min(s.fontSize*0.25, s.w*0.12);
+  s.h=wrapTextLines(s,pad).length*(s.fontSize*1.25)+2*pad;
 }
 // Render a text box: a screen-only dashed frame (so an empty/standalone box is visible and
 // grabbable) plus the wrapped, left-aligned, top-anchored lines. Font size is fixed in mm and
@@ -1179,9 +1223,13 @@ function wrapTextLines(s){
 // glyphs (paint-order:stroke) when enabled. The whole group is rotation-wrapped by the caller.
 function renderText(s, sel, hov){
   normText(s);
-  const lines=wrapTextLines(s), pad=textPad(s);
-  const weight=s.bold?700:400, style=s.italic?'italic':'normal';
-  const lineH=s.fontSize*1.25, fill=shapeColor(s), ve='vector-effect="non-scaling-stroke"';
+  const ag=!!s.autoGrow, fs=s.fontSize, lineH=fs*1.25;
+  // auto-height uses a height-independent inset so the box-hugging is stable across renders
+  const pad= ag ? Math.min(fs*0.25, s.w*0.12) : textPad(s);
+  const lines=wrapStyledLines(s, ag?pad:undefined);
+  const blockH=lines.length*lineH;
+  if(ag) s.h=blockH+2*pad;   // box hugs its content (top-anchored); keeps model + handles in sync
+  const fill=shapeColor(s), ve='vector-effect="non-scaling-stroke"';
   let h=`<g id="shg-${s.id}" class="sh-text${sel?' sh-sel':''}">`;
   // bounding frame — faint normally, brighter on hover, accent + white halo when selected
   const bcol=sel?'#3a7bd5':(hov?'rgba(77,210,255,0.6)':'rgba(150,150,180,0.4)');
@@ -1194,12 +1242,22 @@ function renderText(s, sel, hov){
   const tx=(s.align==='center'?s.x+s.w/2:s.align==='right'?s.x+s.w-pad:s.x+pad).toFixed(3);
   // fill off → outline-only (hollow) text; the txt-hollow class drives the print rule too
   const fillAttr=s.fill===false?'none':fill, hollow=s.fill===false?' txt-hollow':'';
-  // vertical alignment positions the whole wrapped block within the box (top/middle/bottom)
-  const blockH=lines.length*lineH;
-  const blockTop=s.valign==='middle'?s.y+(s.h-blockH)/2:s.valign==='bottom'?s.y+s.h-pad-blockH:s.y+pad;
-  let ty=blockTop+s.fontSize; // baseline of the first line
-  for(const ln of lines){
-    if(ln!=='') h+=`<text class="txt-glyph${hollow}" x="${tx}" y="${ty.toFixed(3)}" text-anchor="${anchor}" font-family="system-ui, sans-serif" font-size="${s.fontSize}" font-weight="${weight}" font-style="${style}" fill="${fillAttr}" ${outline}>${escapeXML(ln)}</text>`;
+  // vertical alignment positions the whole wrapped block within the box (auto-height is always top)
+  const blockTop= ag ? s.y+pad
+    : s.valign==='middle' ? s.y+(s.h-blockH)/2
+    : s.valign==='bottom' ? s.y+s.h-pad-blockH
+    : s.y+pad;
+  let ty=blockTop+fs; // baseline of the first line
+  for(const segs of lines){
+    if(segs.some(sg=>sg.t!=='')){
+      // one <text> per line carrying x/y + anchor; one <tspan> per style run (runs flow inline)
+      let runs='';
+      for(const sg of segs){
+        if(sg.t==='') continue;
+        runs+=`<tspan font-weight="${sg.b?700:400}" font-style="${sg.i?'italic':'normal'}">${escapeXML(sg.t)}</tspan>`;
+      }
+      h+=`<text class="txt-glyph${hollow}" x="${tx}" y="${ty.toFixed(3)}" text-anchor="${anchor}" font-family="system-ui, sans-serif" font-size="${fs}" fill="${fillAttr}" ${outline}>${runs}</text>`;
+    }
     ty+=lineH;
   }
   return h+'</g>';
@@ -1895,9 +1953,11 @@ function getHandles(sh) {
   if(!sh) return [];
   if(isTextLike(sh)){ // text box resizes like a rect (8 handles); resizing changes w/h only, not font size
     const{x,y,w,h}=sh;
-    return [{id:'nw',x,y},{id:'n',x:x+w/2,y},{id:'ne',x:x+w,y},
+    const hs=[{id:'nw',x,y},{id:'n',x:x+w/2,y},{id:'ne',x:x+w,y},
             {id:'e',x:x+w,y:y+h/2},{id:'se',x:x+w,y:y+h},
             {id:'s',x:x+w/2,y:y+h},{id:'sw',x,y:y+h},{id:'w',x,y:y+h/2}];
+    // auto-height text owns its height → drop the vertical mid-handles (corners still set width)
+    return (sh.type==='text'&&sh.autoGrow) ? hs.filter(o=>o.id!=='n'&&o.id!=='s') : hs;
   }
   if(sh.type==='circle') return [{id:'r',x:sh.cx+sh.r,y:sh.cy}];
   if(sh.type==='path'){
@@ -2388,9 +2448,9 @@ function shapeCenter(s) {
 // Measure text width in mm. font-size is passed as px to the canvas; advances scale linearly,
 // so the result is in the same units as the SVG font-size (which we set in mm user-units).
 let _measCtx=null;
-function measureTextW(str, fs, weight){
+function measureTextW(str, fs, weight, italic){
   if(!_measCtx) _measCtx=document.createElement('canvas').getContext('2d');
-  _measCtx.font=`${weight} ${fs}px system-ui, sans-serif`;
+  _measCtx.font=`${italic?'italic ':''}${weight} ${fs}px system-ui, sans-serif`;
   return _measCtx.measureText(str).width;
 }
 // Greedy word-wrap so each line fits maxW (a single over-long word is kept and the caller shrinks).
@@ -3490,11 +3550,15 @@ function onMove(e) {
       const mx=snapV(L.x,sk),my=snapV(L.y,sk),hd=S.resizeHandle;
       if(isTextLike(s)){ // text box resizes its bounds only — font size is untouched, text re-wraps
         let{x,y,w,h}={...sn};
+        const agText=(s.type==='text'&&s.autoGrow); // auto-height: width-only resize, h follows content
         if(hd.includes('w')){const nx=mx;w=Math.max(1,x+w-nx);x=nx;}
         if(hd.includes('e')){w=Math.max(1,mx-x);}
-        if(hd.includes('n')){const ny=my;h=Math.max(1,y+h-ny);y=ny;}
-        if(hd.includes('s')){h=Math.max(1,my-y);}
+        if(!agText){
+          if(hd.includes('n')){const ny=my;h=Math.max(1,y+h-ny);y=ny;}
+          if(hd.includes('s')){h=Math.max(1,my-y);}
+        }
         s.x=x;s.y=y;s.w=w;s.h=h;
+        if(agText) reflowTextHeight(s);
       } else {
         if(hd==='r') s.r=Math.max(0.5,Math.sqrt((mx-s.cx)**2+(my-s.cy)**2));
       }
@@ -3685,7 +3749,11 @@ function openTextEditor(s){
     +'box-shadow:0 4px 18px rgba(0,0,0,.5);outline:none';
   document.body.appendChild(ta);
   ta.focus(); ta.select();
-  ta.addEventListener('input',()=>{ s.text=ta.value; renderContent(); }); // live, no history
+  ta.addEventListener('input',()=>{ // live, no history
+    s.text=ta.value;
+    if(s.autoGrow){ reflowTextHeight(s); ta.style.height=Math.max(30,s.h*scale)+'px'; } // box hugs content
+    renderContent();
+  });
   const commit=()=>{
     if(ta._done) return; ta._done=true;
     s.text=ta.value; closeTextEditor();
@@ -4062,6 +4130,7 @@ function updatePropsPanel() {
     document.getElementById('pi-italic').classList.toggle('on', !!sh.italic);
     document.querySelectorAll('#pi-align-grid .align-cell').forEach(c=>
       c.classList.toggle('on', c.dataset.v===(sh.valign||'top') && c.dataset.h===(sh.align||'left')));
+    document.getElementById('pi-autogrow').checked=!!sh.autoGrow;
     document.getElementById('pi-fill').checked=sh.fill!==false;
     document.getElementById('pi-outline').checked=!!sh.outline;
     document.getElementById('row-outline').style.display=sh.outline?'':'none';
@@ -4363,7 +4432,14 @@ function applyTextProps(){
   sh.outline=document.getElementById('pi-outline').checked;
   sh.outlineWidth=Math.max(0.05,parseFloat(document.getElementById('pi-outlinew').value)||sh.outlineWidth);
   document.getElementById('row-outline').style.display=sh.outline?'':'none';
-  renderContent();
+  reflowTextHeight(sh); // font-size change re-wraps → auto-height box may grow/shrink
+  renderContent(); updatePropsPanel();
+}
+// Auto-height toggle: when on, the box height tracks its wrapped content (top-anchored; valign moot).
+function toggleAutoGrow(){
+  const sh=getShape(S.selId); if(!sh||sh.type!=='text') return;
+  pushHist(); sh.autoGrow=!sh.autoGrow; reflowTextHeight(sh);
+  renderContent(); updatePropsPanel();
 }
 function setTextAnchor(v,h){ // valign: top|middle|bottom · align: left|center|right (Figma 3x3 grid)
   const sh=getShape(S.selId); if(!sh||sh.type!=='text') return;
@@ -4374,7 +4450,7 @@ function setTextAnchor(v,h){ // valign: top|middle|bottom · align: left|center|
 function beginTextEdit(){ const sh=getShape(S.selId); if(sh&&sh.type==='text') S._textSnap=snapshot(S.shapes); }
 function liveTextInput(){
   const sh=getShape(S.selId); if(!sh||sh.type!=='text') return;
-  sh.text=document.getElementById('pi-text').value; renderContent();
+  sh.text=document.getElementById('pi-text').value; reflowTextHeight(sh); renderContent();
 }
 function endTextEdit(){
   if(S._textSnap && S._textSnap!==snapshot(S.shapes)){ pushUndo(S._textSnap); updateHistStatus(); }
@@ -4382,7 +4458,19 @@ function endTextEdit(){
 }
 function toggleTextStyle(which){ // 'bold' | 'italic'
   const sh=getShape(S.selId); if(!sh||sh.type!=='text') return;
-  pushHist(); sh[which]=!sh[which]; renderContent();
+  // If text is selected in the content field, wrap it in markup (per-run emphasis);
+  // otherwise toggle the whole-box baseline (the original behaviour).
+  const ta=document.getElementById('pi-text'), marker=which==='bold'?'**':'*';
+  if(ta && ta.selectionEnd>ta.selectionStart){
+    const v=ta.value, a=ta.selectionStart, b=ta.selectionEnd;
+    pushHist();
+    sh.text=v.slice(0,a)+marker+v.slice(a,b)+marker+v.slice(b);
+    ta.value=sh.text;
+    ta.setSelectionRange(a+marker.length, b+marker.length); // keep the run selected, inside the markers
+    reflowTextHeight(sh); renderContent();
+    return;
+  }
+  pushHist(); sh[which]=!sh[which]; reflowTextHeight(sh); renderContent(); updatePropsPanel();
 }
 function setOutlineColor(hex){
   const sh=getShape(S.selId); if(!sh||sh.type!=='text') return;

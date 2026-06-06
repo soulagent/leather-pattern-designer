@@ -918,7 +918,7 @@ window.__SMOKE__ = function (spec) {
 
       // style fields survive a save/load round-trip (v12)
       sh.bold = true; sh.italic = true; sh.outline = true; sh.outlineColor = '#ffffff'; sh.outlineWidth = 0.5; sh.color = '#e84393';
-      sh.align = 'right'; sh.valign = 'bottom'; sh.fill = false;
+      sh.align = 'right'; sh.valign = 'bottom'; sh.fill = false; sh.autoGrow = true;
       const wire = JSON.parse(JSON.stringify(buildSaveData()));
       assert('text: save version is 14', wire.version === 14, `version=${wire.version}`);
       applyLoadedData(wire);
@@ -928,12 +928,39 @@ window.__SMOKE__ = function (spec) {
       assert('text: outline + colour survive round-trip',
         r.outlineColor === '#ffffff' && r.outlineWidth === 0.5 && r.color === '#e84393', `${r.outlineColor},${r.outlineWidth},${r.color}`);
       assert('text: align + valign + fill survive round-trip', r.align === 'right' && r.valign === 'bottom' && r.fill === false, `align=${r.align} valign=${r.valign} fill=${r.fill}`);
+      assert('text: autoGrow survives round-trip', r.autoGrow === true, `autoGrow=${r.autoGrow}`);
+
+      // ── per-run inline emphasis (v0.7.22): **bold** / *italic* → styled <tspan> runs ──
+      r.bold = false; r.italic = false; r.fill = true; r.autoGrow = false; r.align = 'left'; r.w = 400;
+      r.text = 'plain **bold** word'; renderContent();
+      let html = vp.innerHTML;
+      assert('text: **markup** → a 700-weight tspan', /<tspan[^>]*font-weight="700"[^>]*>bold\s*<\/tspan>/.test(html), 'no bold run');
+      assert('text: surrounding text stays 400', /<tspan[^>]*font-weight="400"[^>]*>plain /.test(html), 'no plain run');
+      const runText = (html.match(/<tspan[^>]*>([^<]*)<\/tspan>/g) || []).join('');
+      assert('text: markers stripped from rendered runs', !runText.includes('*'), runText);
+      r.text = 'one *two* three *four* five';
+      assert('text: styled + plain wraps agree on line count', wrapStyledLines(r).length === wrapTextLines(r).length, `${wrapStyledLines(r).length} vs ${wrapTextLines(r).length}`);
+      r.italic = true; r.text = 'hi'; renderContent();
+      assert('text: baseline italic → italic tspan', /<tspan[^>]*font-style="italic"[^>]*>hi<\/tspan>/.test(vp.innerHTML), 'no italic run');
+      r.italic = false;
+
+      // ── auto-height (v0.7.22): box height follows wrapped content; vertical handles drop out ──
+      r.autoGrow = true; r.w = 40; r.h = 200; r.text = 'line one\nline two\nline three';
+      reflowTextHeight(r);
+      const apad = Math.min(r.fontSize * 0.25, r.w * 0.12);
+      const expectH = wrapTextLines(r, apad).length * (r.fontSize * 1.25) + 2 * apad;
+      assert('text: auto-height fits content', Math.abs(r.h - expectH) < 1e-6, `h=${r.h} exp=${expectH}`);
+      const tallH = r.h; r.text = 'one'; reflowTextHeight(r);
+      assert('text: auto-height shrinks with less text', r.h < tallH, `${r.h} !< ${tallH}`);
+      const agHandles = getHandles(r).map(h => h.id).sort().join(',');
+      assert('text: auto-height drops n/s handles', agHandles === 'e,ne,nw,se,sw,w', agHandles);
+      r.autoGrow = false;
 
       // normText backfills a bare/partial text shape (forward-compat on load)
       const bare = normText({ type: 'text', x: 0, y: 0, w: 0, h: 0 });
       assert('text: normText backfills defaults',
         bare.fontSize === TEXT_DEFAULT_FONT && bare.w === TEXT_DEFAULT_W && bare.text === '' && bare.outlineColor === '#000000'
-        && bare.align === 'left' && bare.valign === 'top' && bare.fill === true, JSON.stringify(bare));
+        && bare.align === 'left' && bare.valign === 'top' && bare.fill === true && bare.autoGrow === false, JSON.stringify(bare));
     },
 
     // ── home / welcome screen (v0.6): overlay, french-stitch border, themed dialog, recovery ──

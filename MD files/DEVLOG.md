@@ -16,9 +16,9 @@ Remaining after the v0.7.20 accessibility/UX pass:
   give them `role="button"` + `tabindex=0` + Enter/Space (or `<button>`). _(a11y)_
 - [ ] **`prefers-reduced-motion` support.** Soften/disable transitions+animations under `reduce`.
   Deliberately deferred as low priority.
-- [ ] **Finish palette tokenization.** Only text + accent are on CSS variables; migrate the remaining
-  surface/border literals (`#12122a`, `#1e1e38`, `#2a2a4a`, …) onto the `--panel`/`--raised`/`--border`
-  tokens so the whole palette is single-sourced (helps the eventual C++ port too).
+- [x] ~~**Finish palette tokenization.**~~ DONE v0.7.21 — all structural surface/border literals now
+  reference `--panel`/`--raised`/`--border`/`--canvas`/`--bg`/`--dialog`/`--hover`; redundant light
+  overrides dropped. Only the token defs (and the intentional dialog-only `#2f2f52`) remain as hexes.
 - [ ] **Re-sync the `ui-language` skill / STYLE_GUIDE** if/when the user fine-tunes UI elements.
 
 _(Larger separate efforts are tracked in their own memories: the 3D companion app and the C++
@@ -29,7 +29,7 @@ Rect + pen/bezier tools · per-edge saddle stitching (even holes + geometric cor
 colour · per-corner rect radii · convert-to-editable-path · per-anchor corner/smooth · shape-to-shape
 snap · multi-select (shift-click + rubber-band + group move/delete) · shape rotation · rulers ·
 multiple named **artboards** (per-artboard print/export, layer grouping, geometry in undo) · **text-box
-tool** · per-layer hide/lock · duplicate + alt-drag duplicate · auto-fitting on-shape labels ·
+tool** (per-run bold/italic markup, auto-height) · per-layer hide/lock · duplicate + alt-drag duplicate · auto-fitting on-shape labels ·
 Save / Save As / auto-save · **light + dark themes on design tokens (WCAG AA)** · in-app Help + Quick
 Start · headless smoke tests. **Desktop (Tauri):** multi-file tabs · native open/save · single-instance
 · `.lpd` file association · signed **auto-update** via GitHub Releases · native **SVG + PNG** export.
@@ -37,7 +37,6 @@ Start · headless smoke tests. **Desktop (Tauri):** multi-file tabs · native op
 _(Per-version detail is in the dated changelog below.)_
 
 ### Still wanted (open follow-ups — not started)
-- **Text:** vertical-fit auto-grow; per-run styling (mixed bold/italic within one box).
 - **Pen:** true spline-closure geometry for smooth first/last anchors; drag-on-resume to set the
   resumed endpoint's handle.
 - **Stitching / QOL:** default-spacing in Settings as the same stitching-iron dropdown the per-shape
@@ -70,6 +69,62 @@ MVP and a parametric catalogue of common goods before attempting general free-fo
 
 ### Known accepted rough edges
 - Very acute "sliver" corners (margin wider than the local feature width) — the inward offset is geometrically degenerate there; the min-gap pass prevents pile-ups but the geometry stays rough.
+
+---
+
+## v0.7.22 — 2026-06-07
+
+### Text boxes: auto-height + per-run bold/italic
+Two text-box features off the "Still wanted" list. Both keep `s.text` a plain string, so save/load
+and **both** editors (the props textarea + the in-place canvas `<textarea>`) are unchanged.
+
+- **Per-run inline emphasis.** A single box can now mix weights/styles via Markdown-ish markers that
+  **toggle** relative to the box baseline: `*italic*`, `**bold**`, `***both***`. New pure helpers
+  `parseSegments` (marker scan → styled segments) → `segWords` (measured words, a word may span runs
+  like `a**b**`) → **`wrapStyledLines`** (greedy wrap → array of `{t,b,i}` segments per line).
+  `wrapTextLines` is now derived from `wrapStyledLines` (markers stripped) so plain line-count and the
+  styled render always agree. `renderText` emits **one `<text>` per line with a `<tspan>` per style
+  run** (x/y/anchor on the `<text>`, runs flow inline). `measureTextW` gained an `italic` arg.
+  In the UI: the **B / I buttons wrap the current textarea selection** in markers when text is
+  selected, else toggle the whole-box baseline (unchanged); a hint line documents the syntax.
+- **Auto-height (`s.autoGrow`, default off).** When on, the box height tracks its wrapped content
+  (top-anchored; valign moot) via `reflowTextHeight(s)`, called at every wrap-changing edit (typing in
+  either editor, font-size, width-resize, bold toggle) with `renderText` re-applying it as a safety
+  net. Uses a height-independent inset so the size is stable. Resize is **width-only** for auto-height
+  boxes — the `n`/`s` mid-handles drop out of `getHandles` and the resize handler ignores vertical drag
+  (corners still set width); the in-place editor grows to match. New **Auto-height** checkbox in Text
+  props (`toggleAutoGrow`).
+- **Schema unchanged** (v14): `autoGrow` is a plain shape field; `normText` backfills it `false` so
+  older files default to fixed-height. `makeTextShape` seeds it. HTML smoke **359/359** (+9 text
+  asserts: markup→weighted/italic tspans, markers stripped, styled/plain wrap agreement, auto-height
+  fit + shrink + handle dropout, round-trip).
+
+---
+
+## v0.7.21 — 2026-06-07
+
+### Finish palette tokenization (single-source the surface/border palette)
+Closes the "only text + accent are on CSS variables" carry-forward. Every structural **surface and
+border** literal in the dark theme now references a design token instead of a hardcoded hex, so the
+whole palette is single-sourced at `:root` (helps the eventual C++ port — one place to read the colours).
+
+- **Dark literals → tokens.** Mapped each hardcoded surface/border to its existing token by exact value
+  and role: `#12122a`→`var(--panel)`, `#1e1e38`→`var(--raised)`, `#16162c`→`var(--dialog)`,
+  `#0d0d1f`→`var(--canvas)`, `#1a1a2e`→`var(--bg)`, and `#2a2a4a`→`var(--border)` (borders/dividers)
+  or `var(--hover)` (hover fills). Covers menubar, tabbar/tabs, toolbar, canvas, props panel + inputs,
+  layers arrows, status bar, modal + `.m-inp`, confirm/help/quick-start dialogs, buttons. Because each
+  swap is the same value, **dark mode is pixel-identical**.
+- **Removed redundant `body.light` overrides.** With the dark rules now on tokens and light re-pointing
+  those tokens (`body.light{--panel/…}`), eleven light overrides that merely re-set a role to the value
+  the token already provides were dead and are gone (`#menubar`, `#toolbar`, `#props`, `#props-resize`,
+  `#status`, `#canvas-wrap`, `.tab`, `.m-item:hover`, `.p-inp/.p-sel`, `.align-cell`, `.modal`) plus the
+  redundant `background`/`color` on `body.light` itself. Light mode is unchanged (verified value-by-value).
+- **Latent light-mode fix.** The tab-bar scrollbar thumb was a hardcoded `#2a2a4a` with no light override
+  (a dark thumb on the light surface); now `var(--border)`, so it follows the theme.
+- The only surface/border hexes left in CSS are the **token definitions** themselves. (The dialog-only
+  `#2f2f52` border shade is intentionally not a token — a distinct dialog accent used consistently.)
+
+Pure styling refactor — no logic, no save-format change. HTML smoke **350/350**.
 
 ---
 

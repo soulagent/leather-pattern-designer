@@ -1,5 +1,5 @@
 # Leather Pattern Designer — Session Context
-_Last updated: 2026-06-05 · Current version: v0.7.20 · Save format v14 (.lpd)_
+_Last updated: 2026-06-07 · Current version: v0.7.22 · Save format v14 (.lpd)_
 
 ---
 
@@ -450,9 +450,12 @@ fallback (open it in a browser). Don't move app logic into the desktop layer; ke
     artboard, so existing page code keeps working. Old single-page files migrate by
     wrapping `S.page` as `artboards[0]` (save format **v13**). **Split into stages:**
     (a) data model + migration + Artboard tool + render-multiple-pages = first cut;
-    **(b) multi-page print/export per artboard = FOLLOW-UP** (deferred); **(c) Layers
-    panel grouping — layers nest as children under their artboard, shapes outside any
-    artboard stay top-level = FOLLOW-UP** (deferred, requested 2026-06-03).
+    **(b) multi-page print/export per artboard = DONE v0.7.1**; **(c) Layers panel
+    grouping — layers nest as children under their artboard, shapes outside any artboard
+    stay top-level = DONE v0.7.2** (`shapeArtboardId`/`renderLayers`/`layerRowHTML`;
+    group-aware reorder; single-section docs render flat; `layer-groups` smoke feature).
+    Grouping is positional (follows the shape's geometry) — moving a shape between
+    artboards via the panel is intentionally not supported.
 10. Named layers / groups
 11. Per-shape label / notes field
 12. Stitch density preview (show estimated total hole count)
