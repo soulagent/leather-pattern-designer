@@ -1,8 +1,8 @@
 {
   "_comment": "Build ledger for the packaged desktop exe. APP_VERSION (dev/working number) lives in index.html; each /build mints a new buildTag = two random words + -V<buildCount> and appends it to history. On the next /build: increment buildCount, generate two fresh random words, set buildTag, update BUILD_TAG in index.html, then cargo tauri build.",
-  "devVersion": "0.7.20",
-  "buildCount": 8,
-  "buildTag": "maple-osprey-V8",
+  "devVersion": "0.7.22",
+  "buildCount": 9,
+  "buildTag": "tawny-kestrel-V9",
   "history": [
     { "v": 1, "tag": "slate-heron-V1", "dev": "0.6.2", "date": "2026-06-03" },
     { "v": 2, "tag": "copper-marten-V2", "dev": "0.6.2", "date": "2026-06-03" },
@@ -11,6 +11,7 @@
     { "v": 5, "tag": "olive-wren-V5", "dev": "0.7.11", "date": "2026-06-05" },
     { "v": 6, "tag": "cedar-otter-V6", "dev": "0.7.12", "date": "2026-06-05" },
     { "v": 7, "tag": "birch-falcon-V7", "dev": "0.7.13", "date": "2026-06-05" },
-    { "v": 8, "tag": "maple-osprey-V8", "dev": "0.7.20", "date": "2026-06-05" }
+    { "v": 8, "tag": "maple-osprey-V8", "dev": "0.7.20", "date": "2026-06-05" },
+    { "v": 9, "tag": "tawny-kestrel-V9", "dev": "0.7.22", "date": "2026-06-07" }
   ]
 }
