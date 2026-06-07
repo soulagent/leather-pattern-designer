@@ -57,6 +57,151 @@ sibling assembly file, plus seam-tagging UI in *this* app). Goals 1/2 (render/ca
 risk; the 2D→3D fold is the hard, research-adjacent part — phase it, start with a flat-panel 3D viewer
 MVP and a parametric catalogue of common goods before attempting general free-form folding.
 
+### C++ migration plan (vision — NOT started; comprehensive steps + caveats)
+The user's long-term aim: move the app off HTML/CSS/JS (+ Tauri/WebView2) to a **native C++** codebase
+for more control, performance, and a **shared core with the [[companion-3d-app]]** (which will be
+native/OpenGL anyway), and to retire the JS smoke-harness in favour of real C++ tests. This is a
+*large* effort — the plan below is deliberately phased so the early, low-risk phases are valuable
+**even if the full UI rewrite is never finished** (the extracted core is reusable by the 3D app).
+
+> **Read this first — strategic framing.** The HTML app is mature (v0.7.24, 390 smoke asserts, signed
+> auto-update, multi-artboard, text, a11y). A pure 2D-editor rewrite has *weak* ROI on its own — it
+> re-implements a working product. The migration only clearly pays off if **(a)** it's tied to the 3D
+> companion needing a shared native geometry/IO core, **(b)** we hit a browser ceiling (perf on huge
+> patterns, precise device/colour control, plugin/CAD-kernel integration), or **(c)** the maintenance
+> cost of the single-file JS app becomes the bottleneck. **Recommendation:** do Phases 0–2 (core + parity
+> harness) as a small reusable investment, then *gate* Phases 3+ on a real need. Do **not** big-bang.
+
+#### Guiding principles (non-negotiables)
+1. **The browser app stays canonical until the C++ app reaches verified parity.** No removing `index.html`
+   mid-migration — it's the reference implementation *and* the parity oracle.
+2. **`.lpd` files must keep loading** — port the JSON schema (v14) + every back-compat migration (v1→v14
+   defaulting) exactly. Round-trip equality is a test gate.
+3. **mm-true output is sacred** — SVG/PNG/print must still come out at exact physical mm. This is the
+   product's whole point.
+4. **Port logic before UI.** The deterministic core (geometry, stitch, IO, hit-testing math) is the
+   easy, high-value, testable part; the UI/rendering is the hard, framework-bound part.
+5. **Parity-test against the JS** at every step — the existing smoke scenarios become golden tests.
+
+#### Recommended stack (these are *decisions* — alternatives + caveats noted)
+| Concern | Recommended | Alternatives | Why / caveat |
+|---|---|---|---|
+| Language/std | C++20 | C++17 | ranges/`std::variant`/designated-init help model code. |
+| Build | **CMake + vcpkg** | Conan, Meson | Reproducible deps; matches Qt/Skia ecosystems. |
+| GUI toolkit | **Qt 6 (Widgets)** | Qt Quick/QML; Dear ImGui + Skia; wxWidgets | Qt gives panels/menus/dialogs matching today's UI, cross-platform, **built-in accessibility**, and **`QPdfWriter`/`QPrinter` for mm-true print** (huge). **Caveat: licensing** — LGPLv3 is fine for *dynamic* linking; static linking / app-store / closed distribution may need a commercial Qt licence ($). ImGui is fast to prototype but has **near-zero a11y** (would throw away the v0.7.20–v0.7.24 accessibility work) and no native dialogs. |
+| 2D vector render | **QPainter** (Qt) | Skia, Cairo, NanoVG | Beziers, dashed strokes, transforms, AA, text — all native. Skia = max control + same engine as Chrome (closest to today's pixels) but heavier to integrate. |
+| Text shaping | Qt text / **HarfBuzz** | stb_truetype | Text-box wrap + per-run bold/italic + auto-height depend on **exact font metrics** — see blockers. |
+| JSON (.lpd) | **nlohmann/json** | RapidJSON (faster), Glaze | Ergonomics first; .lpd files are small. |
+| Tests | **Catch2** (or GoogleTest) | doctest | Re-express the 390 smoke asserts here → finally drops HTML-harness reliance. |
+| SVG export | **hand-rolled writer** | resvg (render only) | We already build SVG strings in JS; a C++ string writer is a near-direct port. |
+| Auto-update | **WinSparkle** (Win) / Sparkle (mac) | Squirrel, custom appcast | Replaces Tauri's updater — **re-platform risk, see blockers**. |
+
+#### Target architecture (layered, UI-agnostic core)
+```
+core/      (no UI, no Qt) — the reusable, testable heart; also linked by the 3D app
+  model/      Document, Shape (Rect|Circle|Path|Text variant), Artboard, Settings, enums
+  geom/       PX_PER_MM + transforms, bbox/worldAABB/localAABB, rotPt/toLocal, pathToD/samplePath, snap
+  stitch/     the saddle-stitch hole generator (port of SKILL.md / references/algorithm.md)
+  io/         .lpd read/write + schema migrations; SVG string export
+  history/    undo/redo snapshots
+render/    Renderer interface (drawPath/drawText/dashed/transform/hitRegion) + QPainter impl
+ui/        Qt: canvas widget, toolbar, menubar, property panel, layers, dialogs, shortcuts, a11y
+platform/  file assoc, single-instance, recent files, autosave, print, PNG raster, auto-update
+app/       wiring + main()
+```
+Key idea: **`core/` knows nothing about Qt**, so it compiles standalone, tests headlessly, compiles to
+WASM for parity checks, and is shared with the 3D companion.
+
+#### JS → C++ mapping (orientation for the port)
+| Today (index.html) | C++ |
+|---|---|
+| `S` state object | `Document` (owns `std::vector<Shape>`, artboards, settings, undo stacks) |
+| shape objects `{type,...}` | `struct Shape { ShapeType; std::variant<Rect,Circle,Path,Text>; common: id,color,rot,hidden,locked,label,...}` |
+| `renderContent()` (`innerHTML` rebuild) | retained scene → `Renderer` immediate-mode paint per frame (Qt `paintEvent`) |
+| `updateTransform()` 60fps pan/zoom | adjust view matrix + `update()` (no full rebuild) |
+| `pushHist()`/snapshot JSON | `History::push(Document snapshot)` (start with JSON-string snapshots for byte-parity, optimise later) |
+| `onDown/onMove/onUp`, `hitShape/hitHandle/hitEdge` | canvas widget mouse handlers + same hit-test math |
+| stitch `stitchRect/Circle/Path` | `core/stitch/` pure functions (port 1:1, golden-tested) |
+| `buildSaveData()/applyLoadedData()` + migrations | `io/lpd.{read,write}` + `migrate()` |
+| smoke `FEATURES`/asserts | Catch2 test cases (1:1 mirror) |
+
+#### Phased plan (each phase has a deliverable + an exit gate)
+- **Phase 0 — Decisions & scaffolding.** Lock the stack (esp. GUI toolkit + licensing). Add a `cpp/` tree
+  + `CMakeLists.txt`; **keep `index.html` untouched**. Add a CI job: build core + run Catch2 alongside
+  the existing smoke. *Deliverable:* a "hello window" Qt app + a building empty `core` lib. *Exit:*
+  one-command clone→build→test on Windows; CI green.
+- **Phase 1 — Pure core (no UI).** Port, in this order (easiest/highest-value first): coordinate math →
+  geometry helpers → **the stitch algorithm** → save/load + migrations → history. *Deliverable:* `core`
+  static lib + Catch2 unit tests. *Exit:* core builds and unit tests pass on its own scenarios.
+- **Phase 2 — Parity harness (the de-risker).** Expose `core` via a tiny CLI (JSON in → JSON out) *or*
+  compile to WASM. Build a golden rig that feeds the **same scenarios as the JS smoke suite** and diffs
+  C++ vs JS output (stitch-hole coords, bbox, `.lpd` round-trips, hit-tests) within tolerance.
+  *Deliverable:* parity report; catalogue of any divergence (esp. float/text). *Exit:* core parity ≥
+  threshold; **this is the natural off-ramp** — the core is already reusable by the 3D app even if we
+  stop here.
+- **Phase 3 — Rendering.** Implement the `Renderer` (QPainter): viewport transform (`zoom*PX_PER_MM`),
+  grid, rulers, shapes, stitch holes (round/diamond/french), handles, dashed previews. Re-implement the
+  **stroke-width-unit gotcha** deliberately (mm vs non-scaling). *Deliverable:* read-only viewer.
+  *Exit:* visual parity vs browser screenshots on a `.lpd` corpus (within AA tolerance).
+- **Phase 4 — Interaction & tools.** Port select/move/resize/rotate, marquee, snapping, edge selection,
+  the **pen/bezier tool** (incl. v0.7.23 spline-close + drag-on-resume), text editing/auto-height,
+  multi-select, layers panel, artboards. Property panel, menus, themed dialogs, shortcuts, **a11y via Qt
+  accessibility**. *Deliverable:* feature-complete editor. *Exit:* feature-parity checklist + tests.
+- **Phase 5 — Output.** SVG writer (mm-true), PNG raster at DPI, **print/PDF via `QPdfWriter` at true
+  mm**, multi-artboard export/print. *Exit:* output dimensions exact in mm; files match browser within
+  tolerance.
+- **Phase 6 — Desktop integration.** File association, single-instance, recents, autosave, multi-file
+  tabs, and **auto-update** (WinSparkle appcast + re-built signing). *Exit:* installer + updater at
+  parity with today's Tauri build.
+- **Phase 7 — Cutover.** Dual-run beta; migrate docs/skills/`CLAUDE.md`/`CONTEXT.md`; retire the Tauri
+  wrapper; **decide the browser app's fate** (keep as permanent lightweight fallback vs retire). *Exit:*
+  C++ app is the shipped product; docs updated.
+
+#### Testing strategy
+Catch2 unit tests for `core`; **golden/parity tests vs the JS** during transition (re-using smoke
+scenarios as the oracle — directly delivers "drop the HTML harness"); **visual-regression** (screenshot
+diff) for rendering; a smoke-equivalent mirroring the 390 asserts; CI matrix per-OS. Keep the JS smoke
+running until Phase 7 so both implementations are checked against the same intent.
+
+#### Caveats & blockers (severity)
+- **[HIGH] Loss of the zero-build browser fallback.** Today "open `index.html`" needs nothing; C++ brings
+  a heavy toolchain (compiler, CMake, vcpkg deps) and kills the instant edit→refresh loop. This is a
+  real workflow regression for a solo maker who iterates in the browser.
+- **[HIGH] Auto-update re-platforming.** Tauri's signed updater + GitHub-release pipeline (latest.json,
+  `.sig`, the signing key in `~/.tauri/`) all get replaced (WinSparkle/Sparkle appcast + new signing).
+  Recently-built infra (v0.7.14) would be rebuilt. Cross-platform updaters differ per OS.
+- **[HIGH] Effort / opportunity cost.** This is *months* of solo work to re-reach a place we're already
+  at in HTML. Every hour here is an hour not on new features or the 3D app — unless the core work is
+  shared with the 3D app (the justification).
+- **[HIGH/MED] Text metrics & wrapping parity.** Text-box wrap + per-run bold/italic + **auto-height**
+  depend on font metrics; matching the browser's layout exactly (so old files look identical) is hard.
+  Mitigate by **bundling the exact font** and accepting small, documented drift.
+- **[MED] Print/PDF & SVG fidelity.** `QPdfWriter` is excellent but point/mm rounding differs subtly from
+  browser print; SVG numeric formatting differs. Lock tolerances; test against printed rulers.
+- **[MED] GUI licensing.** Qt LGPL is fine *dynamically linked*; static/commercial distribution may need
+  a paid licence. ImGui/Skia avoid this but cost a11y + native widgets. A genuine budget decision.
+- **[MED] Accessibility regression risk.** The v0.7.20–v0.7.24 a11y work is "free" in the browser; in
+  C++ it depends entirely on the toolkit. Qt has decent a11y; **ImGui has almost none** — picking ImGui
+  silently throws that work away.
+- **[MED] Cross-platform parity.** Tauri already multi-targets; a C++ GUI must re-earn Win/mac/Linux
+  parity (hi-DPI scaling, IME/text input, clipboard, file dialogs — all handled for us by the browser
+  today).
+- **[LOW] `.lpd` back-compat.** Mechanical but must be *exact* — every default/migration ported and
+  round-trip-tested, or users silently lose data.
+- **[LOW] Slower iteration loop.** Compile times vs browser refresh; mitigate with the headless core
+  tests so most logic work doesn't need a UI rebuild.
+- **[Supply chain]** vcpkg/Conan + Qt/Skia/HarfBuzz pull in real dependencies to vet, pin, and license —
+  versus today's literally-zero npm/deps.
+
+#### Open decisions (need the user before Phase 0)
+1. **GUI toolkit:** Qt6 (a11y + mm print + licensing $) vs Skia+ImGui (control, MIT-ish, but a11y/widgets
+   regress) vs other. *Biggest single decision — it shapes everything downstream.*
+2. **Is this gated on the 3D companion?** If yes, design `core/` for both from day one (changes priorities).
+3. **Keep the browser app as a permanent fallback**, or retire it at cutover?
+4. **Target OS priority** (Windows-first assumed) and whether mac/Linux are in scope.
+5. **Auto-update mechanism** + budget for code-signing certs / Qt commercial licence.
+6. **Appetite/timeline** — full migration, or just Phases 0–2 (shared core) for now?
+
 ### First-time user experience (FTUE) — keep current
 - **Maintenance commitment (user-stated):** whenever a headline feature lands or changes, refresh the
   Quick Start (`#qs-bg`) so a new user's first 60 seconds stays accurate. Treat it like the DEVLOG —
