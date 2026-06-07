@@ -72,6 +72,21 @@ MVP and a parametric catalogue of common goods before attempting general free-fo
 
 ---
 
+## docs — 2026-06-07
+
+### Repo front door: root README + download link
+Added a top-level `README.md` so the GitHub repo page has a real landing experience. Previously there
+was no root README and the signed installer only lived as a Release asset, so a first-time visitor had
+no obvious "how do I install this" path. The README leads with a **Download** button + version badge
+pointing at `releases/latest` (the installer is correctly distributed as a Release asset, not committed
+to the repo), documents the expected **SmartScreen "More info -> Run anyway"** step (build is
+update-signed, not Authenticode code-signed), notes the in-app/auto-update path, offers the
+**browser-only fallback** (download `index.html`, open it), lists feature highlights, and points to
+`desktop/README.md` for building from source and `MD files/` for the dev docs. No app/code change; no
+version bump.
+
+---
+
 ## v0.7.22 — 2026-06-07
 
 ### Text boxes: auto-height + per-run bold/italic
