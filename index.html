@@ -683,7 +683,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.7.22</div>
+  <div id="app-title">Leather Pattern Designer v0.7.24</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -747,6 +747,10 @@ body.light .qs-foot{border-top-color:#dde0ea}
       </div>
       <div class="p-sec-body" id="body-shape">
         <div id="no-sel-msg">No shape selected</div>
+        <div id="multi-sel-msg" style="display:none">
+          <div class="p-dim-sum" id="multi-sel-count">—</div>
+          <p class="p-note" id="multi-sel-detail" style="text-align:center"></p>
+        </div>
         <div id="sel-props" style="display:none">
           <!-- NAME (top) -->
           <div class="p-grp">Name</div>
@@ -994,7 +998,17 @@ body.light .qs-foot{border-top-color:#dde0ea}
     </div>
     <div class="m-row">
       <span class="m-lbl">Default spacing (mm)</span>
-      <input class="m-inp" id="set-spacing" type="number" step="0.01" min="0.5">
+      <select class="m-inp" id="set-spacing" onchange="onSettingsSpacingChange()">
+        <option value="2.7">2.7 mm</option>
+        <option value="3">3.0 mm</option>
+        <option value="3.38">3.38 mm</option>
+        <option value="3.85">3.85 mm</option>
+        <option value="custom">Custom…</option>
+      </select>
+    </div>
+    <div class="m-row" id="set-spacing-custom-row" style="display:none">
+      <span class="m-lbl">Custom spacing (mm)</span>
+      <input class="m-inp" id="set-spacing-custom" type="number" step="0.01" min="0.5">
     </div>
     <div class="m-row">
       <span class="m-lbl">Hole style</span>
@@ -1089,8 +1103,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.7.22';
-const BUILD_TAG = 'tawny-kestrel-V9';
+const APP_VERSION = 'v0.7.24';
+const BUILD_TAG = 'indigo-plover-V10';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -1108,6 +1122,8 @@ const AUTOSAVE_OPTS = [0, 300, 600, 900, 1800, 2700, 3600, 7200, 10800, 14400, 1
 // screen. Print is always black (see @media print), so colour is a screen-only aid.
 const DEFAULT_SHAPE_COLOR = '#3a7bd5';
 const SHAPE_COLORS = ['#3a7bd5','#e74c3c','#27ae60','#e67e22','#9b59b6','#16a085','#f1c40f','#e84393','#d35400','#95a5a6'];
+// Stitching-iron sizes offered by the Spacing dropdown (per-shape + Settings default). 'custom' = free entry.
+const SPACING_PRESETS = ['2.7','3','3.38','3.85'];
 
 // ── TEXT BOX ──
 // A text shape is a wrap-bounded label box: geometry {x,y,w,h} in mm (top-left + size, like a
@@ -1312,6 +1328,7 @@ const S = {
   penDown:false,
   penDownPt:null,
   penDragging:false, // true once the current mousedown has dragged into a smooth anchor
+  penResumeAnchor:false, // true while dragging the just-resumed endpoint to set its outgoing handle
   penLastDown:0,     // timestamp for double-click detection
   penShift:false,    // shift held while drawing → snap the candidate anchor to the grid
   fileHandle:null,   // FileSystemFileHandle of the open/saved .lpd → plain Save re-writes it
@@ -1449,7 +1466,7 @@ function renderTabs(){
   let h='';
   S.tabs.forEach((t,i)=>{
     const title = (i===S.activeTab ? tabTitle() : t.title) || 'Untitled';
-    h += `<div class="tab${i===S.activeTab?' active':''}" title="${escapeXML(title)}" onclick="switchTab(${i})">`
+    h += `<div class="tab${i===S.activeTab?' active':''}" role="button" tabindex="0" aria-label="Switch to ${escapeXML(title)}" title="${escapeXML(title)}" onclick="switchTab(${i})" onkeydown="kbActivate(event)">`
        + `<span class="tab-name">${escapeXML(title)}</span>`
        + `<span class="tab-x" role="button" tabindex="0" aria-label="Close tab" title="Close tab" onclick="event.stopPropagation();closeTab(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();closeTab(${i});}">&times;</span>`
        + `</div>`;
@@ -1499,6 +1516,7 @@ function toggleSection(id) {
   const open = !body.classList.contains('closed');
   body.classList.toggle('closed', open);
   hd.classList.toggle('closed', open);
+  hd.setAttribute('aria-expanded', String(!open)); // after toggling: expanded = it was NOT open before
 }
 
 // ── Right panel resize ──────────────────────────────────
@@ -3123,7 +3141,15 @@ function penMouseDown(mm, snap) {
   // idle pen over an open path's endpoint → resume that path instead of starting a new one
   if(!S.penPts.length){
     const rt=penResumeTarget(mm);
-    if(rt){ resumeOpenPath(rt.id, rt.end); return; }
+    if(rt){
+      resumeOpenPath(rt.id, rt.end);
+      // Arm a drag on the resumed endpoint: dragging now sets ITS outgoing handle, so the next
+      // segment flows smoothly out of the existing end. A plain click (no drag) leaves it unchanged.
+      const ep=S.penPts[S.penPts.length-1];
+      S.penDown=true; S.penDragging=false; S.penResumeAnchor=true;
+      S.penDownPt={x:ep.x, y:ep.y};
+      return;
+    }
   }
 
   S.penDown=true;
@@ -3145,6 +3171,19 @@ function penMouseMove(mm, snap) {
     const dx=sx-pp.x, dy=sy-pp.y;
     const dist=Math.sqrt(dx*dx+dy*dy);
     const pt=S.penPts[S.penPts.length-1];
+    if(S.penResumeAnchor){
+      // Resuming an open path: set ONLY the endpoint's outgoing handle (cp2). Its incoming handle
+      // (cp1) is left untouched, so the existing curve is unchanged — purely additive. A tiny drag
+      // leaves the endpoint exactly as it was (still a click-to-continue).
+      if(dist>1.5/(S.zoom*PX)){
+        S.penDragging=true;
+        pt.corner=false;
+        pt.cp2x=pp.x+dx; pt.cp2y=pp.y+dy;
+      } else {
+        S.penDragging=false;
+      }
+      renderContent(); return;
+    }
     if(dist>1.5/(S.zoom*PX)){
       // dragged far enough → smooth anchor; outgoing handle follows the drag, incoming reflected
       S.penDragging=true;
@@ -3165,10 +3204,28 @@ function penMouseMove(mm, snap) {
 function penMouseUp() {
   S.penDown=false;
   S.penDragging=false;
+  S.penResumeAnchor=false;
+}
+
+// On closing a pen path, give the first/last SMOOTH anchors true tangent-continuous handles derived
+// from their cyclic neighbours (Catmull-Rom, factor 1/6), so the loop joins without a kink at the
+// start/close point. Corner anchors are left sharp on purpose. No-op below 3 points.
+function applySmoothClosure(pts) {
+  const n=pts.length;
+  if(n<3) return;
+  for(const i of [0, n-1]){
+    const p=pts[i];
+    if(p.corner) continue;
+    const prev=pts[(i-1+n)%n], next=pts[(i+1)%n];
+    const tx=(next.x-prev.x)/6, ty=(next.y-prev.y)/6;
+    p.cp1x=p.x-tx; p.cp1y=p.y-ty;
+    p.cp2x=p.x+tx; p.cp2y=p.y+ty;
+  }
 }
 
 function finishPen(closed=false) {
   if(S.penPts.length<2){ cancelPen(); return; }
+  if(closed) applySmoothClosure(S.penPts); // smooth the join for any smooth first/last anchors
   let sh;
   if(S.penResume){
     // Resumed path: the undo target is the ORIGINAL open path in place, so one undo reverts the
@@ -3200,6 +3257,7 @@ function cancelPen() {
   S.penPts=[];
   S.penDown=false;
   S.penDragging=false;
+  S.penResumeAnchor=false;
   S.hoverHandle=null; S.hoverShape=null; S.hoverEdge=-1; S.selEdge=null; wrap.style.cursor='';
   if(S.tool==='pen'){
     // Switch tool state directly WITHOUT calling setTool() — setTool zeros S.selId, which would
@@ -3932,10 +3990,30 @@ function restoreTheme(){
 // Toolbar icon buttons only carry a CSS `data-tip` tooltip (invisible to screen readers); mirror it
 // into aria-label. Tool buttons also get aria-pressed (kept in sync by applyToolChrome). The menubar
 // is made click-to-open + keyboard-navigable by initMenubar().
+// a11y: activate a role="button" control (a clickable div/span that isn't a native <button>) from the
+// keyboard — Enter or Space fires its own click handler. The target===currentTarget guard means a
+// container's handler fires ONLY when the container itself is focused, never when a key bubbles up from
+// an inner control (delete button, opacity slider, close ✕), so there's no double-activation. Wired via
+// onkeydown="kbActivate(event)" on dynamically-rendered rows/swatches/tabs and addEventListener for the
+// static section headers.
+function kbActivate(e){
+  if(e.target!==e.currentTarget) return;
+  if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.currentTarget.click(); }
+}
 function initAccessibility(){
   const tb=document.getElementById('toolbar'); if(tb) tb.setAttribute('role','toolbar');
   document.querySelectorAll('.t-btn[data-tip]').forEach(b=>{ if(!b.getAttribute('aria-label')) b.setAttribute('aria-label', b.dataset.tip); });
   const tt=document.getElementById('theme-toggle'); if(tt&&!tt.getAttribute('aria-label')) tt.setAttribute('aria-label','Toggle light / dark mode');
+  // Collapsible property-panel section headers → real buttons (focusable, Enter/Space toggles, expand
+  // state announced). Static markup, so set up once here.
+  document.querySelectorAll('.p-hd').forEach(hd=>{
+    const bodyId='body-'+hd.id.slice(3); // hd-<name> → body-<name>
+    const body=document.getElementById(bodyId);
+    hd.setAttribute('role','button'); hd.tabIndex=0;
+    hd.setAttribute('aria-controls',bodyId);
+    hd.setAttribute('aria-expanded', body && !body.classList.contains('closed') ? 'true' : 'false');
+    hd.addEventListener('keydown', kbActivate);
+  });
   initMenubar();
 }
 // Accessible menubar: CLICK to open (the menu STAYS open — an accidental mouse-out no longer closes
@@ -4063,7 +4141,7 @@ function renderArtboards(){
   box.innerHTML=S.artboards.map(a=>{
     const on=a.id===S.activeArtboard||a.id===S.selArtboard;
     const dims=`${a.preset==='Custom'?'Custom':a.preset} · ${a.w}×${a.h}`;
-    return `<div class="lay-row${on?' sel':''}" onclick="selectArtboard(${a.id})" title="${escapeXML(a.name||'')}">`
+    return `<div class="lay-row${on?' sel':''}" role="button" tabindex="0" aria-label="Artboard ${escapeXML(a.name||'Untitled')}" onclick="selectArtboard(${a.id})" onkeydown="kbActivate(event)" title="${escapeXML(a.name||'')}">`
       +`<span class="lay-name">${a.id===S.activeArtboard?'● ':''}${escapeXML(a.name||'Untitled')}</span>`
       +`<span class="lay-op-v" style="width:auto;white-space:nowrap">${dims}</span>`
       +`<button class="lay-arr" title="Delete artboard" onclick="event.stopPropagation();deleteArtboard(${a.id})"${S.artboards.length<=1?' disabled':''}>✕</button>`
@@ -4087,10 +4165,14 @@ function setSnapSize(mm){
 // UI — PROPS PANEL
 // ═══════════════════════════════════════════════════════
 function updatePropsPanel() {
-  const sh=getShape(S.selId);
-  document.getElementById('no-sel-msg').style.display  = sh?'none':'';
+  // With >1 shape selected the single-shape editor is meaningless — show a summary instead.
+  const multi = S.selIds.length>1;
+  const sh = multi ? null : getShape(S.selId);
+  document.getElementById('multi-sel-msg').style.display = multi?'':'none';
+  document.getElementById('no-sel-msg').style.display  = (sh||multi)?'none':'';
   document.getElementById('sel-props').style.display   = sh?'':'none';
   document.getElementById('sec-stitch').style.display  = (sh&&sh.type!=='text')?'':'none'; // stitch panel only on a stitchable selection (not text)
+  if(multi){ updateMultiSelSummary(); return; }
   if(!sh) return;
   // toggle the per-type rows inside the shared subcategory groups (Position/Size/Corners/…)
   const isRect=sh.type==='rect', isCirc=sh.type==='circle', isPath=sh.type==='path', isText=sh.type==='text';
@@ -4137,7 +4219,7 @@ function updatePropsPanel() {
     document.getElementById('pi-outlinew').value=sh.outlineWidth;
     const ocur=(sh.outlineColor||'#000000').toLowerCase();
     document.getElementById('pi-outline-colors').innerHTML=OUTLINE_COLORS.map(c=>
-      `<div class="sw${c.toLowerCase()===ocur?' active':''}" style="background:${c}" title="${c}" onclick="setOutlineColor('${c}')"></div>`).join('');
+      `<div class="sw${c.toLowerCase()===ocur?' active':''}" role="button" tabindex="0" aria-label="Outline colour ${c}" style="background:${c}" title="${c}" onclick="setOutlineColor('${c}')" onkeydown="kbActivate(event)"></div>`).join('');
   } else if(sh.type==='circle'){
     document.getElementById('pi-summary').textContent=`r = ${sh.r.toFixed(2)} mm  (⌀ ${(sh.r*2).toFixed(2)})`;
     document.getElementById('pi-type').textContent='Circle';
@@ -4179,7 +4261,6 @@ function updatePropsPanel() {
   const m=sh.stitchMargin??S.defMargin, sp=sh.stitchSpacing??S.defSpacing;
   document.getElementById('pi-margin').value=m;                 // margin: free numeric input
   const ssel=document.getElementById('pi-spacing');             // spacing: iron-size dropdown
-  const SPACING_PRESETS=['2.7','3','3.38','3.85'];
   if(SPACING_PRESETS.includes(String(sp))){ ssel.value=String(sp); document.getElementById('custom-spacing-row').style.display='none'; }
   else { ssel.value='custom'; document.getElementById('custom-spacing-row').style.display=''; }
   document.getElementById('pi-spacing-custom').value=sp;
@@ -4190,7 +4271,25 @@ function updatePropsPanel() {
   // colour swatches
   const cur=shapeColor(sh).toLowerCase();
   document.getElementById('pi-colors').innerHTML = SHAPE_COLORS.map(c=>
-    `<div class="sw${c.toLowerCase()===cur?' active':''}" style="background:${c}" title="${c}" onclick="setShapeColor('${c}')"></div>`).join('');
+    `<div class="sw${c.toLowerCase()===cur?' active':''}" role="button" tabindex="0" aria-label="Colour ${c}" style="background:${c}" title="${c}" onclick="setShapeColor('${c}')" onkeydown="kbActivate(event)"></div>`).join('');
+}
+
+// Summary shown in the Shape Properties panel when >1 shape is selected: count, a per-type
+// breakdown, and the combined (rotation-aware) bounding box of the whole selection.
+const TYPE_LABEL={rect:'rectangle',circle:'circle',path:'path',text:'text box'};
+function updateMultiSelSummary() {
+  const shapes=S.selIds.map(getShape).filter(Boolean);
+  document.getElementById('multi-sel-count').textContent=`${shapes.length} shapes selected`;
+  let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
+  const counts={};
+  for(const s of shapes){
+    const b=worldAABB(s);
+    x1=Math.min(x1,b.x1); y1=Math.min(y1,b.y1); x2=Math.max(x2,b.x2); y2=Math.max(y2,b.y2);
+    counts[s.type]=(counts[s.type]||0)+1;
+  }
+  const parts=Object.keys(counts).map(t=>`${counts[t]} ${TYPE_LABEL[t]||t}${counts[t]>1?'s':''}`);
+  document.getElementById('multi-sel-detail').innerHTML=
+    `${parts.join(' · ')}<br>Bounds ${(x2-x1).toFixed(1)} × ${(y2-y1).toFixed(1)} mm`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4221,7 +4320,7 @@ const LOCK_OFF='<svg viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6
 function layerRowHTML(s,sel,top,bot,nested){
   const op=Math.round((s.opacity||0)*100);
   const hidden=!!s.hidden, locked=!!s.locked;
-  return `<div class="lay-row${sel?' sel':''}${nested?' nested':''}${hidden?' lay-hidden':''}" data-id="${s.id}" onclick="selectLayer(${s.id})"`
+  return `<div class="lay-row${sel?' sel':''}${nested?' nested':''}${hidden?' lay-hidden':''}" data-id="${s.id}" role="button" tabindex="0" aria-label="Layer ${layerName(s)}" onclick="selectLayer(${s.id})" onkeydown="kbActivate(event)"`
     +` ondragover="layDragOver(event)" ondragleave="layDragLeave(event)" ondrop="layDrop(event,${s.id})">`
     +`<span class="lay-grip" draggable="true" title="Drag to reorder" onclick="event.stopPropagation()"`
       +` ondragstart="layDragStart(event,${s.id})" ondragend="layDragEnd(event)">⠿</span>`
@@ -4262,7 +4361,7 @@ function renderLayers(){
   for(const sec of sections){
     const collapsed=!!S.layerCollapsed[sec.key];
     if(!flat){
-      h+=`<div class="lay-group${collapsed?' collapsed':''}${sec.active?' active':''}" onclick="toggleLayerGroup('${sec.key}')" title="${escapeXML(sec.title)}">`
+      h+=`<div class="lay-group${collapsed?' collapsed':''}${sec.active?' active':''}" role="button" tabindex="0" aria-expanded="${collapsed?'false':'true'}" aria-label="${escapeXML(sec.title)} group" onclick="toggleLayerGroup('${sec.key}')" onkeydown="kbActivate(event)" title="${escapeXML(sec.title)}">`
         +`<span class="lay-gcaret">▾</span>`
         +`<span class="lay-gname">${sec.active?'● ':''}${escapeXML(sec.title)}</span>`
         +`<span class="lay-gcount">${sec.members.length}</span></div>`;
@@ -4994,7 +5093,11 @@ function openSettings(){
   document.getElementById('set-autosave').value = nearestAutosave(S.autoSaveInt);
   document.getElementById('set-hlimit').value   = S.histLimit;
   document.getElementById('set-margin').value   = S.defMargin;
-  document.getElementById('set-spacing').value  = S.defSpacing;
+  // Default spacing uses the same stitching-iron dropdown as the per-shape Spacing (presets + custom).
+  const sp=S.defSpacing, spSel=document.getElementById('set-spacing');
+  if(SPACING_PRESETS.includes(String(sp))){ spSel.value=String(sp); document.getElementById('set-spacing-custom-row').style.display='none'; }
+  else { spSel.value='custom'; document.getElementById('set-spacing-custom-row').style.display=''; }
+  document.getElementById('set-spacing-custom').value = sp;
   document.getElementById('set-stitchstyle').value = S.stitchStyle;
   document.getElementById('set-snapmm').value   = S.snapMM;
   document.getElementById('set-snapshapes').checked = S.snapShapes;
@@ -5011,6 +5114,10 @@ function openSettings(){
   onSettingsPresetChange();
   document.getElementById('modal-bg').classList.add('open');
 }
+// Show the custom spacing row only when the Custom iron size is chosen (mirrors applySpacingPreset).
+function onSettingsSpacingChange(){
+  document.getElementById('set-spacing-custom-row').style.display=document.getElementById('set-spacing').value==='custom'?'':'none';
+}
 // Show the custom W/H row only when the Custom preset is chosen.
 function onSettingsPresetChange(){
   const custom=document.getElementById('set-page-preset').value==='Custom';
@@ -5020,7 +5127,8 @@ function saveSettings(){
   S.autoSaveInt = +document.getElementById('set-autosave').value||0;
   S.histLimit   = Math.min(500,Math.max(10,+document.getElementById('set-hlimit').value||100));
   S.defMargin   = Math.max(0.5,+document.getElementById('set-margin').value||3);
-  S.defSpacing  = Math.max(0.5,+document.getElementById('set-spacing').value||3.38);
+  const spSel=document.getElementById('set-spacing').value;
+  S.defSpacing  = Math.max(0.5, spSel==='custom'?(+document.getElementById('set-spacing-custom').value||3.38):parseFloat(spSel));
   S.stitchStyle = document.getElementById('set-stitchstyle').value;
   S.snapMM      = Math.max(0.1,+document.getElementById('set-snapmm').value||1);
   S.snapShapes  = document.getElementById('set-snapshapes').checked;

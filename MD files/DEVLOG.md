@@ -11,9 +11,9 @@ _What's built and what's still wanted. The dated changelog (newest first) is bel
 
 ### ▶ Open TODOs (carry-forward, not started)
 Remaining after the v0.7.20 accessibility/UX pass:
-- [ ] **Promote remaining clickable `<div>`s to real controls.** Menu actions + tab-close are now
-  keyboard-activatable, but other `onclick` divs (layer rows, etc.) still aren't focusable/announced —
-  give them `role="button"` + `tabindex=0` + Enter/Space (or `<button>`). _(a11y)_
+- [x] ~~**Promote remaining clickable `<div>`s to real controls.**~~ DONE v0.7.24 — section headers,
+  tabs, artboard rows, colour swatches, layer rows + group headers are now focusable `role="button"`
+  controls activated by Enter/Space (`kbActivate`); expand/collapse state announced via `aria-expanded`.
 - [ ] **`prefers-reduced-motion` support.** Soften/disable transitions+animations under `reduce`.
   Deliberately deferred as low priority.
 - [x] ~~**Finish palette tokenization.**~~ DONE v0.7.21 — all structural surface/border literals now
@@ -69,6 +69,60 @@ MVP and a parametric catalogue of common goods before attempting general free-fo
 
 ### Known accepted rough edges
 - Very acute "sliver" corners (margin wider than the local feature width) — the inward offset is geometrically degenerate there; the min-gap pass prevents pile-ups but the geometry stays rough.
+
+---
+
+## v0.7.24 — 2026-06-07
+
+### Accessibility: clickable `<div>`s promoted to real controls
+Closes the carry-forward a11y item from the v0.7.20 pass — every remaining click-only `<div>`/`<span>`
+is now a keyboard-operable, screen-reader-announced control. No save-format change (v14); full smoke
+**390/390** (new `a11y` feature, +13).
+
+- **`kbActivate(e)` helper.** Enter or Space fires the element's own `click()`. Guarded by
+  `e.target===e.currentTarget`, so a container's handler activates **only when the container itself is
+  focused** — a key bubbling up from an inner control (a row's delete button, opacity slider, or tab
+  ✕) is ignored, so there's no double-activation. Wired via inline `onkeydown="kbActivate(event)"` on
+  dynamically-rendered markup, and `addEventListener` for the static section headers.
+- **Promoted controls.** Property-panel **section headers** (`.p-hd` — `role=button` + `tabindex` +
+  `aria-controls`/`aria-expanded`, set up in `initAccessibility`; `toggleSection` keeps `aria-expanded`
+  in sync), **document tabs**, **artboard rows**, **shape + outline colour swatches**, **layer rows**,
+  and **layer-group headers** (`aria-expanded` reflects collapse). Each dynamic template now bakes
+  `role="button"` + `tabindex="0"` + the keydown handler + an `aria-label` (swatches especially, since
+  they have no text). The global `:focus-visible` ring (v0.7.20) already styles them, so keyboard focus
+  is visible everywhere with no extra CSS.
+- Menu actions and the tab-close ✕ were already keyboard-accessible (v0.7.20); this fills the gaps.
+  **Remaining a11y carry-forward:** `prefers-reduced-motion` (deliberately deferred, low priority).
+
+---
+
+## v0.7.23 — 2026-06-07
+
+### Pen spline-closure + drag-on-resume; stitching QoL
+Cleared two "Still wanted" pen items and two stitching/QoL items off the backlog. No save-format
+change (schema stays v14); full smoke **377/377** (+18).
+
+- **Spline closure for smooth first/last anchors.** Closing a pen path used to reuse whatever stale
+  handles the first/last anchors had, so a smooth loop got a visible kink at the start/close point.
+  New `applySmoothClosure(pts)` (called from `finishPen(true)`) recomputes both handles of the first
+  and last anchors **when they're smooth** (`!corner`) using a Catmull-Rom tangent (factor 1/6) from
+  their cyclic neighbours, giving a tangent-continuous join. Corner anchors are left sharp on purpose;
+  an **open** finish never smooths. (+5 asserts in `pen-close`.)
+- **Drag-on-resume sets the endpoint's handle.** Resuming an open path (idle pen, click an endpoint)
+  was click-only — a drag did nothing. Now a drag on the grabbed endpoint sets *its* outgoing handle
+  (cp2 only; the incoming curve is left untouched, so it's purely additive), so the continuation flows
+  out smoothly. New `S.penResumeAnchor` flag: armed in `penMouseDown`'s resume branch, applied in a new
+  `penMouseMove` branch, cleared in `penMouseUp`/`cancelPen`. (+5 asserts in `pen-resume`; the new test
+  also cleans up `S.penResume`, which `reset()` doesn't clear — a latent cross-feature leak.)
+- **Settings default-spacing = the per-shape iron-size dropdown.** The Settings ▸ Default spacing field
+  was a free numeric input; it's now the same **2.7 / 3.0 / 3.38 / 3.85 / Custom…** dropdown the
+  per-shape Spacing uses. Hoisted the preset list to a shared `SPACING_PRESETS` const (was a local in
+  `updatePropsPanel`); added `onSettingsSpacingChange` + a `set-spacing-custom` row; `openSettings` /
+  `saveSettings` read it the same way `applyProps` does. (+6 asserts in `stitch-inputs`.)
+- **Multi-select summary in the properties panel.** With >1 shape selected the panel showed the primary
+  shape's single-shape editor (misleading). It now shows a `#multi-sel-msg` summary — "N shapes
+  selected", a per-type breakdown, and the combined rotation-aware bounds (`updateMultiSelSummary`,
+  using `worldAABB`). (+2 asserts in `multiselect`.)
 
 ---
 

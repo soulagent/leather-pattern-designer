@@ -1,5 +1,5 @@
 # Leather Pattern Designer — Keyboard & Mouse Reference
-_v0.7.22_
+_v0.7.24_
 
 ---
 
@@ -117,8 +117,9 @@ _v0.7.22_
 | `Shift` _(hold)_ | Snap the anchor to the grid as you place it |
 | `Enter` | Finish path (open) |
 | `Double-click` | Finish path (open) |
-| Click first anchor _(≥ 2 pts placed)_ | **Close** and finish — a green ring + floating **○** cue appears as the cursor nears the first anchor, and the preview snaps to it |
+| Click first anchor _(≥ 2 pts placed)_ | **Close** and finish — a green ring + floating **○** cue appears as the cursor nears the first anchor, and the preview snaps to it. Any **smooth** first/last anchor gets a true tangent-continuous handle so the loop closes without a kink (corners stay sharp) |
 | Click an open path's **end anchor** _(idle pen)_ | **Resume** that path — continue adding points from its endpoint (a cyan ring cue shows on hover). Un-rotated open paths only |
+| **Drag** an open path's **end anchor** _(idle pen)_ | Resume **and** set that endpoint's outgoing handle from the drag, so the continuation flows out smoothly |
 | `Backspace` | **Undo the last placed anchor** (pen-only — never touches document undo/redo) |
 | `Esc` / `Del` | Cancel / discard in-progress path |
 

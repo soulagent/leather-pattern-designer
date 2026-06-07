@@ -449,6 +449,32 @@ window.__SMOKE__ = function (spec) {
       assert('penUndoPoint: empties the path at zero', S.penPts.length === 0, `${S.penPts.length}`);
       penUndoPoint(); // safe on an empty path
       assert('penUndoPoint: no-op when already empty', S.penPts.length === 0, 'should stay empty');
+
+      // ── spline closure: smooth first/last anchors get tangent-continuous handles on close ──
+      reset();
+      S.tool = 'pen'; S.snap = false; S.penLastDown = 0;
+      const sm = (x, y) => { const p = makePt(x, y, true); p.corner = false; return p; };
+      S.penPts = [sm(0, 0), makePt(50, 0, true) /* corner middle */, sm(50, 40)];
+      finishPen(true);
+      const cp = S.shapes[S.shapes.length - 1].points;
+      assert('spline closure: smooth first anchor gets handles',
+        cp[0].cp2x !== cp[0].x || cp[0].cp2y !== cp[0].y, 'collapsed');
+      assert('spline closure: smooth last anchor gets handles',
+        cp[2].cp1x !== cp[2].x || cp[2].cp1y !== cp[2].y, 'collapsed');
+      assert('spline closure: first anchor handles reflect (smooth/collinear)',
+        Math.abs((cp[0].cp1x - cp[0].x) + (cp[0].cp2x - cp[0].x)) < 1e-9 &&
+        Math.abs((cp[0].cp1y - cp[0].y) + (cp[0].cp2y - cp[0].y)) < 1e-9, 'not reflected');
+      assert('spline closure: corner anchor left sharp',
+        cp[1].corner === true && cp[1].cp1x === cp[1].x && cp[1].cp2x === cp[1].x, 'corner changed');
+
+      // an OPEN finish never smooths — handles stay where they were
+      reset();
+      S.tool = 'pen'; S.snap = false;
+      S.penPts = [sm(0, 0), makePt(50, 0, true), sm(50, 40)];
+      finishPen(false);
+      const op = S.shapes[S.shapes.length - 1].points;
+      assert('open finish: no spline-closure smoothing',
+        op[0].cp2x === op[0].x && op[0].cp2y === op[0].y, 'smoothed an open path');
     },
 
     // ── pen placement ghost + resume-an-open-path (v0.7.8) ──
@@ -519,6 +545,23 @@ window.__SMOKE__ = function (spec) {
       cancelPen();
       assert('resume cancel: shape restored', S.shapes.length === 1 && S.shapes[0].id === id2, `${S.shapes.length}`);
       assert('resume cancel: penResume cleared', !S.penResume, 'still set');
+
+      // ── drag-on-resume: clicking the endpoint then dragging sets ITS outgoing handle (additive) ──
+      reset();
+      S.tool = 'pen'; S.snap = false; S.penLastDown = 0; S.penPts = [];
+      addShape({ type: 'path', points: [makePt(0, 0, true), makePt(50, 0, true), makePt(50, 40, true)], closed: false });
+      S.cursorMM = { x: 50, y: 40 };
+      penMouseDown({ x: 50, y: 40 }, false);           // resume the 'last' endpoint
+      assert('resume drag: armed on endpoint', S.penResumeAnchor === true && S.penDown === true, `${S.penResumeAnchor},${S.penDown}`);
+      const ep = S.penPts[S.penPts.length - 1];
+      const c1x0 = ep.cp1x, c1y0 = ep.cp1y;
+      penMouseMove({ x: 60, y: 50 }, false);           // drag away → sets the outgoing handle
+      assert('resume drag: endpoint became smooth', ep.corner === false, 'still corner');
+      assert('resume drag: outgoing handle follows the drag', ep.cp2x === 60 && ep.cp2y === 50, `${ep.cp2x},${ep.cp2y}`);
+      assert('resume drag: incoming handle untouched (additive)', ep.cp1x === c1x0 && ep.cp1y === c1y0, 'cp1 moved');
+      penMouseUp();
+      assert('resume drag: flag cleared on release', S.penResumeAnchor === false, 'still armed');
+      cancelPen(); // tidy up the lifted-path resume state so it can't leak into later features
     },
 
     // ── direct handle editing (Illustrator white-arrow): smooth preserves opposite, Alt breaks ──
@@ -609,6 +652,14 @@ window.__SMOKE__ = function (spec) {
       // multi selection → selId = primary (last)
       S.selIds = [a, b];
       assert('selId = primary (last of selIds)', S.selId === b, `${S.selId}`);
+      // properties panel shows a multi-select summary instead of the single-shape editor
+      updatePropsPanel();
+      assert('multi-sel: summary shown, single-shape props hidden',
+        document.getElementById('multi-sel-msg').style.display !== 'none' &&
+        document.getElementById('sel-props').style.display === 'none', 'panel state wrong');
+      assert('multi-sel: count reflects the selection',
+        /2 shapes selected/.test(document.getElementById('multi-sel-count').textContent),
+        document.getElementById('multi-sel-count').textContent);
       // group delete removes every selected shape
       deleteSelected();
       assert('group delete removes all selected', S.shapes.length === 1 && S.shapes[0].id === c, S.shapes.map(s => s.id).join(','));
@@ -718,6 +769,18 @@ window.__SMOKE__ = function (spec) {
       // a non-preset spacing repopulates as "custom"
       sh.stitchSpacing = 4.13; updatePropsPanel();
       assert('non-preset spacing shows as custom', document.getElementById('pi-spacing').value === 'custom', document.getElementById('pi-spacing').value);
+
+      // ── Settings default-spacing uses the SAME iron-size dropdown (presets + custom) ──
+      S.defSpacing = 3.85; openSettings();
+      assert('settings: preset default selects the dropdown', document.getElementById('set-spacing').value === '3.85', document.getElementById('set-spacing').value);
+      assert('settings: preset hides the custom row', document.getElementById('set-spacing-custom-row').style.display === 'none', 'custom row shown');
+      document.getElementById('set-spacing').value = '2.7'; onSettingsSpacingChange(); saveSettings();
+      assertNear('settings: dropdown writes defSpacing', S.defSpacing, 2.7, 1e-9);
+      S.defSpacing = 4.4; openSettings();
+      assert('settings: non-preset default shows as custom', document.getElementById('set-spacing').value === 'custom', document.getElementById('set-spacing').value);
+      assert('settings: custom row visible for a non-preset', document.getElementById('set-spacing-custom-row').style.display !== 'none', 'custom row hidden');
+      document.getElementById('set-spacing-custom').value = '6.1'; saveSettings();
+      assertNear('settings: custom field writes defSpacing', S.defSpacing, 6.1, 1e-9);
     },
 
     // ── layers: reorder = array order, per-shape opacity (default 1), survives round-trip ──
@@ -1303,11 +1366,55 @@ window.__SMOKE__ = function (spec) {
       assert('zoomFit → zoom is finite and positive', isFinite(S.zoom) && S.zoom > 0, `zoom=${S.zoom}`);
       assert('zoomFit → zoom within clamp (max 10)', S.zoom <= 10, `zoom=${S.zoom}`);
     },
+
+    // ── a11y: clickable divs promoted to real (keyboard-activatable, announced) controls ──
+    a11y() {
+      reset();
+      // kbActivate: Enter/Space on the element itself fires its click + preventDefault
+      let clicked = 0, prevented = 0;
+      const el = document.createElement('div');
+      el.addEventListener('click', () => clicked++);
+      kbActivate({ key: 'Enter', target: el, currentTarget: el, preventDefault() { prevented++; } });
+      assert('a11y: kbActivate Enter fires click', clicked === 1, `clicked=${clicked}`);
+      assert('a11y: kbActivate calls preventDefault', prevented === 1, `p=${prevented}`);
+      kbActivate({ key: ' ', target: el, currentTarget: el, preventDefault() { } });
+      assert('a11y: kbActivate Space fires click', clicked === 2, `clicked=${clicked}`);
+      // a key bubbling up from an inner control (target !== currentTarget) is ignored → no double-fire
+      kbActivate({ key: 'Enter', target: document.createElement('button'), currentTarget: el, preventDefault() { } });
+      assert('a11y: kbActivate ignores bubbled inner keydown', clicked === 2, `clicked=${clicked}`);
+      kbActivate({ key: 'a', target: el, currentTarget: el, preventDefault() { } });
+      assert('a11y: kbActivate ignores other keys', clicked === 2, `clicked=${clicked}`);
+
+      // section headers became real buttons during init (focusable + expand state announced)
+      const hd = document.getElementById('hd-shape');
+      assert('a11y: section header role=button', hd.getAttribute('role') === 'button', hd.getAttribute('role'));
+      assert('a11y: section header focusable', hd.tabIndex === 0, `ti=${hd.tabIndex}`);
+      assert('a11y: section header announces expand state', hd.hasAttribute('aria-expanded'), 'no aria-expanded');
+      const before = hd.getAttribute('aria-expanded');
+      toggleSection('shape');
+      assert('a11y: toggleSection flips aria-expanded', hd.getAttribute('aria-expanded') !== before, `${before}→${hd.getAttribute('aria-expanded')}`);
+      toggleSection('shape'); // restore
+
+      // dynamically-rendered controls carry role=button + tabindex + the keyboard handler
+      const lr = layerRowHTML({ id: 1, type: 'rect', x: 0, y: 0, w: 10, h: 10 }, false, true, true, false);
+      assert('a11y: layer row is a button', /role="button"/.test(lr) && /tabindex="0"/.test(lr) && /onkeydown="kbActivate/.test(lr), 'layer row missing a11y attrs');
+
+      addShape({ type: 'rect', x: 0, y: 0, w: 10, h: 10 });
+      S.selId = S.shapes[0].id; updatePropsPanel();
+      const sw = document.getElementById('pi-colors').innerHTML;
+      assert('a11y: colour swatches are buttons', /role="button"/.test(sw) && /onkeydown="kbActivate/.test(sw), 'swatch missing a11y attrs');
+
+      addArtboard();
+      assert('a11y: artboard rows are buttons', /role="button"/.test(document.getElementById('artboards-list').innerHTML), 'artboard row missing role');
+
+      renderTabs();
+      assert('a11y: tabs are buttons', /aria-label="Switch to/.test(document.getElementById('tabbar').innerHTML), 'tab missing a11y attrs');
+    },
   };
 
   // Tier → ordered feature list. quick = fast logic; full = everything.
   const ORDER = ['core', 'history', 'saveload', 'page', 'color', 'snap',
-    'stitch-rect', 'peredge', 'stitch-circle', 'stitch-path', 'stitch-convert', 'stitch-acute', 'stitch-radii', 'anchor-type', 'pen-grid', 'pen-anchor', 'pen-close', 'pen-resume', 'path-handles', 'label-fit', 'multiselect', 'duplicate', 'stitch-inputs', 'layers', 'layer-groups', 'text', 'home', 'help', 'quickstart', 'artboards', 'tabs', 'rotate', 'stitch-guard', 'bbox'];
+    'stitch-rect', 'peredge', 'stitch-circle', 'stitch-path', 'stitch-convert', 'stitch-acute', 'stitch-radii', 'anchor-type', 'pen-grid', 'pen-anchor', 'pen-close', 'pen-resume', 'path-handles', 'label-fit', 'multiselect', 'duplicate', 'stitch-inputs', 'layers', 'layer-groups', 'text', 'home', 'help', 'quickstart', 'artboards', 'tabs', 'rotate', 'stitch-guard', 'bbox', 'a11y'];
   const TIERS = { quick: ['core', 'history'], full: ORDER };
 
   // Resolve the spec into a list of feature names.

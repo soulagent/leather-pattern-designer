@@ -1,5 +1,5 @@
 # Leather Pattern Designer — Session Context
-_Last updated: 2026-06-07 · Current version: v0.7.22 · Save format v14 (.lpd)_
+_Last updated: 2026-06-07 · Current version: v0.7.24 · Save format v14 (.lpd)_
 
 ---
 
@@ -241,7 +241,7 @@ Smoke tests run the **real** app logic headlessly — no mocked copy, no npm.
 
 ```powershell
 tests\run-smoke.ps1 -Tier quick                # ~5s,  core+history (13 asserts)
-tests\run-smoke.ps1 -Tier full                 # ~15s, every feature (215 asserts)
+tests\run-smoke.ps1 -Tier full                 # ~15s, every feature (390 asserts)
 tests\run-smoke.ps1 -Feature stitch-rect       # just one feature
 tests\run-smoke.ps1 -Feature "color,snap"      # a comma/space list
 ```
@@ -351,6 +351,8 @@ fallback (open it in a browser). Don't move app logic into the desktop layer; ke
 
 | Version | Key additions |
 |---|---|
+| v0.7.24 | **Accessibility: clickable `<div>`s → real controls.** Finishes the a11y pass started in v0.7.20. New `kbActivate(e)` helper (Enter/Space → `click()`, guarded by `e.target===e.currentTarget` so a container's handler never double-fires when a key bubbles up from an inner button/slider). Promoted to focusable, keyboard-activatable, screen-reader-announced `role="button"` controls: the property-panel **section headers** (`.p-hd` — set up in `initAccessibility`, `aria-expanded`/`aria-controls`, kept in sync by `toggleSection`), **tabs**, **artboard rows**, **shape + outline colour swatches**, **layer rows**, and **layer-group headers** (`aria-expanded`). Dynamic templates bake `role/tabindex/onkeydown` + `aria-label`; the existing global `:focus-visible` ring covers them all. `a11y` smoke feature (13 asserts); full **390/390**. _Remaining a11y carry-forward: `prefers-reduced-motion`._ |
+| v0.7.23 | **Pen spline-closure + drag-on-resume; stitching QoL.** Closing a pen path now gives any **smooth** first/last anchor tangent-continuous handles (Catmull-Rom 1/6 from cyclic neighbours) so the loop joins without a kink — corners stay sharp (`applySmoothClosure`, called from `finishPen(true)`). **Resuming** an open path: a drag on the grabbed endpoint now sets *its* outgoing handle (cp2 only — additive, incoming curve untouched) so the continuation flows out smoothly (`S.penResumeAnchor`; armed in `penMouseDown`, applied in `penMouseMove`). QoL: the **Settings → Default spacing** control is now the same stitching-iron dropdown (presets + Custom) the per-shape Spacing uses (`SPACING_PRESETS` hoisted to a shared const; `onSettingsSpacingChange`); the properties panel shows a **multi-select summary** (count + per-type breakdown + combined bounds) when >1 shape is selected (`#multi-sel-msg`/`updateMultiSelSummary`). Smoke +18 across `pen-close`/`pen-resume`/`stitch-inputs`/`multiselect`; full **377/377** |
 | v0.7.4 | **Export all artboards.** With >1 artboard, **Export SVG** asks (themed dialog) "All artboards / Active only". *All* writes one SVG file per artboard (each clipped + true scale) via direct download — `buildSVGExports(all)` returns `[{name,svg}]` with de-duped filenames (`Untitled`, `Untitled-2`, …); batch uses `downloadBlob` so N files don't each pop a save picker; a status flash confirms. *Active only* / single-artboard docs keep the picker path. Helpers `abFileStem`/`svgStringFor`/`buildSVGExports`/`downloadBlob`. `artboards` smoke +4; full **265/265** |
 | v0.7.3 | **Artboard geometry on the undo stack.** The history snapshot now serializes `{shapes, artboards, active}` (was shapes-only) — `snapshot(shapes, artboards, active)` / `restoreHist` set & clamp all three (invalid active/selArtboard fixed up, `nextArtboardId` kept ahead). `addArtboard`/`deleteArtboard` `pushHist()` before mutating; an artboard move captures a pre-drag snapshot (`movingArtboard.snap`) and commits one entry on release if it moved. So add/move/delete artboards undo/redo like shape edits. All existing `snapshot(S.shapes)` call sites still work (artboards default to current). `artboards` smoke +7 (undo/redo of add/move/delete); full **261/261** |
 | v0.7.2 | **Layers panel grouped by artboard.** Shapes nest under collapsible artboard group headers in the Layers panel; a shape's group is positional (`shapeArtboardId` = top-most artboard containing its centre, else "Not on an artboard"). Single-section docs (one artboard holding everything) still render a flat list. ▲/▼ and drag-reorder are now **group-aware**: `reorderLayer` swaps with the nearest same-group neighbour (skips other artboards), and cross-group drops are rejected (membership is positional, not stored). Collapse state in `S.layerCollapsed`; `toggleLayerGroup(key)`. Row markup factored into `layerRowHTML`. `layer-groups` smoke feature (7 asserts); full **254/254** |
