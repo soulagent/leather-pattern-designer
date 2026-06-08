@@ -1,7 +1,9 @@
 # Seam / Assembly Data Model — `.lpd` schema v15 (design)
 
-_Status: **design / not yet implemented**. Authored 2026-06-08. Owner format: the Leather Pattern
-Designer (`.lpd`). Read-only consumer: Leather Studio 3D._
+_Status: **authoring fully implemented in Leather Pattern Designer v0.8.3** (schema v15 — seams +
+folds; Seam tool + Assembly panel). Read-only consumer (Leather Studio 3D) still pending — that's the
+3D auto-stacking stream (S0–S4). Authored 2026-06-08. Owner format: the Leather Pattern Designer
+(`.lpd`). Read-only consumer: Leather Studio 3D._
 
 This is the **Phase-2 gate** for the 3D companion (see `companion-3d-app` memory + Leather Studio 3D
 `MD files/CONTEXT.md` "The crux"). Today's `.lpd` is purely 2D — cut shapes + per-edge stitch lines —

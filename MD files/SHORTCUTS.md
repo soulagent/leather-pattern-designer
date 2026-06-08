@@ -1,5 +1,5 @@
 # Leather Pattern Designer — Keyboard & Mouse Reference
-_v0.8.2_
+_v0.8.3_
 
 ---
 
@@ -13,7 +13,7 @@ _v0.8.2_
 | `T` | Text box |
 | `R` | Rotate |
 | `A` | Artboard (select / move / add pages) |
-| `S` | Seam — mark edges that join (for 3D assembly preview); group them in the Assembly panel |
+| `S` | Seam — mark edges that join (for 3D assembly preview); group them in the Assembly panel. Toggle **Edges / Fold** mode there; in Fold mode click two points on a piece to draw a crease (`Esc` cancels) |
 
 ---
 

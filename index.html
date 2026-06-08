@@ -620,8 +620,11 @@ body.light .qs-foot{border-top-color:#dde0ea}
           <div class="help-sec-h">Seam / Assembly (3D preview prep)</div>
           <div class="help-row"><span class="hk"><kbd class="k">S</kbd></span><span class="hd">Seam tool</span></div>
           <div class="help-row"><span class="hk">Click edge</span><span class="hd">Add a free edge to the pick (amber), or select an existing seam</span></div>
-          <div class="help-row"><span class="hk"><kbd class="k">Esc</kbd></span><span class="hd">Clear the pending picks</span></div>
-          <div class="help-p">Mark which edges <b>join</b> when the flat pieces are assembled. With the <b>Seam tool</b> (S), click the edges that meet, then <b>New seam</b> in the <b>Assembly</b> panel. A seam can hold 2+ edges — even 3+ stacked (e.g. a card-holder spine). Click a seam to rename it, set its type (stitch / fold / glue), order and allowance, or locate/remove member edges. Seams are <b>screen-only metadata</b> for the planned Leather Studio 3D preview — they never affect printing or export.</div>
+          <div class="help-row"><span class="hk">Fold mode</span><span class="hd">Toggle <b>Edges / Fold</b> in the Assembly panel, then click two points to draw a crease</span></div>
+          <div class="help-row"><span class="hk"><kbd class="k">Esc</kbd></span><span class="hd">Clear the pending picks / cancel the in-progress crease</span></div>
+          <div class="help-p">Mark which edges <b>join</b> when the flat pieces are assembled. With the <b>Seam tool</b> (S), click the edges that meet, then <b>New seam</b> in the <b>Assembly</b> panel. A seam can hold 2+ edges — even 3+ stacked (e.g. a card-holder spine). Click a seam to rename it, set its type (stitch / fold / glue), order and allowance, or locate/remove member edges.</div>
+          <div class="help-p"><b>Folds:</b> switch the Seam tool to <b>Fold</b> mode and click two points on a piece to drop a crease line. Each fold has an <b>angle</b> — <b>mountain +</b> (toward you) or <b>valley −</b> (away) — that the 3D preview bends about. Manage creases in the <b>Folds</b> list (rename, angle, locate ◎, delete ✕).</div>
+          <div class="help-p">Seams and folds are <b>screen-only metadata</b> for the planned Leather Studio 3D preview — they never affect printing or export.</div>
         </div>
 
         <div class="help-sec">
@@ -695,7 +698,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.2</div>
+  <div id="app-title">Leather Pattern Designer v0.8.3</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -963,10 +966,17 @@ body.light .qs-foot{border-top-color:#dde0ea}
         <span>Assembly</span><span class="p-tog">▾</span>
       </div>
       <div class="p-sec-body" id="body-assembly">
+        <div id="seam-mode" style="display:none;gap:6px;margin-bottom:8px">
+          <button type="button" id="sm-edge" class="p-btn" style="flex:1" onclick="setFoldMode(false)" title="Pick edges to join into a seam">&#8896; Edges</button>
+          <button type="button" id="sm-fold" class="p-btn" style="flex:1" onclick="setFoldMode(true)" title="Draw a fold crease on a piece">&#10703; Fold</button>
+        </div>
         <div id="seams-list"></div>
         <button class="p-btn" id="btn-new-seam" style="width:100%;margin-top:6px" onclick="createSeamFromSelection()">+ New seam from selection</button>
         <div id="seam-editor"></div>
-        <p class="p-note">With the <b>Seam tool</b> (S), click the edges that join, then create a seam. Click a seam to edit it. Edges sharing a seam join in the 3D assembly preview. Seams are screen-only — never printed.</p>
+        <div class="p-grp" id="folds-hd" style="display:none;margin-top:12px">Folds</div>
+        <div id="folds-list" style="display:none"></div>
+        <div id="fold-editor"></div>
+        <p class="p-note">With the <b>Seam tool</b> (S), click the edges that join, then create a seam. Switch to <b>Fold</b> mode to draw creases. Edges sharing a seam join in the 3D assembly preview; folds bend it. Seams &amp; folds are screen-only — never printed.</p>
       </div>
     </div>
   </div><!-- #props -->
@@ -1132,8 +1142,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.2';
-const BUILD_TAG = 'ochre-bittern-V13';
+const APP_VERSION = 'v0.8.3';
+const BUILD_TAG = 'russet-marten-V14';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -1336,6 +1346,11 @@ const S = {
   // grouped into a seam (each {id,edge}); `hoverSeam` = {id,edge} under the cursor in the Seam tool;
   // `activeSeam` = id of the seam selected in the Assembly panel (highlighted on canvas).
   seamSel:[], hoverSeam:null, activeSeam:null,
+  // Fold authoring (v15): `foldMode` flips the Seam tool from edge-picking to crease-drawing.
+  // `foldDraft` = the in-progress crease {shape, a:{x,y}} (a in the piece's LOCAL frame); the
+  // second click commits it into assembly.folds[]. Both are transient (never saved).
+  // `activeFold` = id of the crease selected in the Assembly panel (highlighted on canvas).
+  foldMode:false, foldDraft:null, activeFold:null,
   movingEdge:false, edgeDrag:null,  // path edge translate state
   spaceDown:false, panning:false, panStart:null, panPanStart:null,
   cursorMM:{x:0,y:0}, hoverHandle:null, hoverShape:null,
@@ -1447,7 +1462,7 @@ function tabTitle(){
 function syncActiveTabMeta(){ const t=S.tabs[S.activeTab]; if(t) t.title = tabTitle(); }
 // Shared refresh after the document slice in S is replaced (switch / new / close / load).
 function afterDocSwap(){
-  S.selEdge=null; S.selAnchor=null; S.seamSel=[]; S.activeSeam=null;
+  S.selEdge=null; S.selAnchor=null; S.seamSel=[]; S.activeSeam=null; S.activeFold=null; S.foldDraft=null;
   if(!S.assembly) S.assembly={version:1, seams:[], folds:[]};
   validateSeams({quiet:true});   // rebuild the derived edge->seam map for the now-active doc
   applyPageDims(); updatePageMenu(); updatePrintPageSize();
@@ -2192,6 +2207,41 @@ function toggleSeamPick(id,edge){
   const i=seamPickIndex(id,edge);
   if(i>=0) S.seamSel.splice(i,1); else S.seamSel.push({id,edge});
 }
+// Fold authoring: snap candidates in a piece's LOCAL frame (rect/text corners, path anchors,
+// circle centre). Fold endpoints land on these so creases line up with the piece geometry.
+function localVerts(s){
+  if(isTextLike(s)) return [{x:s.x,y:s.y},{x:s.x+s.w,y:s.y},{x:s.x+s.w,y:s.y+s.h},{x:s.x,y:s.y+s.h}];
+  if(s.type==='path') return s.points.map(p=>({x:p.x,y:p.y}));
+  if(s.type==='circle') return [{x:s.cx,y:s.cy}];
+  return [];
+}
+// Canvas-mm point → snapped point in shape `s`'s LOCAL frame: prefer a nearby anchor/corner
+// (within a screen-pixel tolerance), else fall back to grid-snap (when global snap is on).
+function foldSnapLocal(s, mx, my){
+  const L=toLocal(mx,my,s), tol2=Math.pow(8/(S.zoom*PX),2);
+  let best=null, bd=tol2;
+  for(const v of localVerts(s)){ const dx=v.x-L.x, dy=v.y-L.y, d=dx*dx+dy*dy; if(d<bd){ bd=d; best=v; } }
+  return best ? {x:best.x, y:best.y} : {x:snapV(L.x,false), y:snapV(L.y,false)};
+}
+// Seam tool, fold sub-mode: 1st click picks the piece + start point; 2nd click commits the crease.
+function foldClick(mx,my){
+  if(!S.foldDraft){
+    const id=hitShape(mx,my);
+    if(id==null){ flashSaved('Click on a piece to start the fold'); return; }
+    S.foldDraft={shape:id, a:foldSnapLocal(getShape(id), mx, my)};
+    renderContent(); return;
+  }
+  const s=getShape(S.foldDraft.shape); if(!s){ S.foldDraft=null; renderContent(); return; }
+  const b=foldSnapLocal(s, mx, my);
+  if(Math.hypot(b.x-S.foldDraft.a.x, b.y-S.foldDraft.a.y) < 0.5){ flashSaved('Fold line too short'); return; }
+  pushHist();
+  const fid=Math.max(0,...S.assembly.folds.map(f=>f.id))+1;
+  S.assembly.folds.push({id:fid, shape:s.id, a:{...S.foldDraft.a}, b, angle:0, name:'fold '+fid});
+  S.foldDraft=null;
+  renderContent();
+}
+// Toggle the Seam tool between edge-picking and fold-drawing (clears any pending picks/draft).
+function setFoldMode(on){ S.foldMode=!!on; S.foldDraft=null; S.seamSel=[]; S.hoverSeam=null; renderContent(); }
 
 // ═══════════════════════════════════════════════════════
 // BEZIER MATH
@@ -2307,6 +2357,7 @@ function validateSeams(opts){
   A.seams = seams; A.folds = folds;
   S._seamMap = map;
   if(S.activeSeam!=null && !seams.some(s=>s.id===S.activeSeam)) S.activeSeam=null; // selection pruned with its seam
+  if(S.activeFold!=null && !folds.some(f=>f.id===S.activeFold)) S.activeFold=null; // fold pruned with its piece
   if(dropped && !opts.quiet) flashSaved(dropped+' seam reference'+(dropped>1?'s':'')+' dropped (geometry changed)');
 }
 // The seam a given edge belongs to, or null. (Derived map; rebuilt by validateSeams.)
@@ -3060,6 +3111,32 @@ function renderContent() {
       g+=`<text class="seam-aid" x="${mid.x}" y="${mid.y}" fill="#1a1205" font-size="${7/(S.zoom*PX)}" font-family="system-ui" font-weight="700" text-anchor="middle" dominant-baseline="central">${i+1}</text>`;
       h+=wrapRot(s, g);
     });
+    // In-progress crease: anchored start dot + rubber-band to the cursor.
+    if(S.foldDraft){
+      const s=getShape(S.foldDraft.shape);
+      if(s){ const a=S.foldDraft.a, c=toLocal(S.cursorMM.x, S.cursorMM.y, s), dash=`stroke-dasharray="${5/(S.zoom*PX)} ${3/(S.zoom*PX)}"`;
+        let g=`<path class="seam-aid" d="M${a.x},${a.y} L${c.x},${c.y}" fill="none" stroke="#a78bfa" stroke-width="${2.2/(S.zoom*PX)}" ${dash} vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+        g+=`<circle class="seam-aid" cx="${a.x}" cy="${a.y}" r="${4/(S.zoom*PX)}" fill="#a78bfa"/>`;
+        h+=wrapRot(s, g);
+      }
+    }
+  }
+  // Committed fold creases (dashed violet): in the Seam tool show ALL; elsewhere only the
+  // panel-selected one. The active crease is thicker + labelled with its mountain/valley angle.
+  if(S.assembly && (S.tool==='seam' || S.activeFold!=null)){
+    const folds=(S.tool==='seam') ? S.assembly.folds : S.assembly.folds.filter(f=>f.id===S.activeFold);
+    const halo=S.light?'#fff':'#0d0d1f', dash=`stroke-dasharray="${5/(S.zoom*PX)} ${3/(S.zoom*PX)}"`;
+    for(const f of folds){
+      const s=getShape(f.shape); if(!s) continue;
+      const active=f.id===S.activeFold;
+      let g=`<path class="seam-aid" d="M${f.a.x},${f.a.y} L${f.b.x},${f.b.y}" fill="none" stroke="#a78bfa" stroke-opacity="${active?1:0.8}" stroke-width="${(active?3.4:2.2)/(S.zoom*PX)}" ${dash} vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+      if(active){
+        const mx=(f.a.x+f.b.x)/2, my=(f.a.y+f.b.y)/2, ang=f.angle||0;
+        const tag=ang>0?'mountain '+ang+'°':ang<0?'valley '+ang+'°':escapeXML(f.name);
+        g+=`<text class="seam-aid" x="${mx}" y="${my-6/(S.zoom*PX)}" fill="#a78bfa" font-size="${11/(S.zoom*PX)}" font-family="system-ui" text-anchor="middle" paint-order="stroke" stroke="${halo}" stroke-width="${2.5/(S.zoom*PX)}" stroke-linejoin="round">${tag}</text>`;
+      }
+      h+=wrapRot(s, g);
+    }
   }
 
   // shape-alignment guides (magenta) while moving
@@ -3087,6 +3164,7 @@ function renderContent() {
   renderLayers();
   renderArtboards();
   renderSeamsList();
+  renderFoldsList();
   updateStatus();
 }
 
@@ -3563,6 +3641,7 @@ function onDown(e) {
   }
 
   if(S.tool==='seam'){
+    if(S.foldMode){ foldClick(mm.x,mm.y); S.down=false; return; }
     // Seam tool: clicking an edge that already belongs to a seam SELECTS that seam (for editing);
     // clicking a free edge toggles it into the pending selection. Empty clicks are ignored.
     const hit=hitAnyEdge(mm.x,mm.y);
@@ -3711,6 +3790,11 @@ function onMove(e) {
   }
 
   // ── Hover detection (seam tool, idle) — highlight the edge under the cursor on any shape ─────
+  if(S.tool==='seam' && S.foldMode && !S.down && !S.panning){
+    wrap.style.cursor='crosshair';
+    if(S.foldDraft) renderContent();   // rubber-band the crease to the cursor
+    return;
+  }
   if(S.tool==='seam' && !S.down && !S.panning){
     const prev=S.hoverSeam, hit=hitAnyEdge(mm.x,mm.y);
     S.hoverSeam=hit;
@@ -4082,6 +4166,7 @@ document.addEventListener('keydown',e=>{
       break;
     case 'Escape':
       if(S.tool==='pen') cancelPen();
+      else if(S.tool==='seam' && S.foldDraft){ S.foldDraft=null; renderContent(); } // cancel in-progress crease
       else if(S.tool==='seam' && S.seamSel.length){ S.seamSel=[]; renderContent(); } // clear pending picks
       else if(S.selEdge){ S.selEdge=null; renderContent(); } // step out of edge → shape
       else { S.selId=null; renderContent(); }
@@ -4128,7 +4213,7 @@ function setTool(t) {
       .then(ok=>{ if(ok){ S.penPts=[]; S.penDown=false; discardPenResume(); setTool(t); } }); return; }
   }
   S.hoverHandle=null; S.hoverShape=null; S.hoverEdge=-1; S.selEdge=null; S.selAnchor=null; S.selArtboard=null; wrap.style.cursor='';
-  S.seamSel=[]; S.hoverSeam=null;   // leaving (or entering) any tool clears pending seam picks
+  S.seamSel=[]; S.hoverSeam=null; S.foldDraft=null;   // leaving (or entering) any tool clears pending seam picks / fold draft
   S.tool=t; S.selId=null; S.preview=null;
   applyToolChrome(t);
   renderArtboards();
@@ -4396,8 +4481,15 @@ function renderSeamsList(){
   const box=document.getElementById('seams-list'), sec=document.getElementById('sec-assembly'), ed=document.getElementById('seam-editor');
   if(!box||!sec) return;
   const seams=(S.assembly&&S.assembly.seams)||[];
-  // Show the section while the Seam tool is active or any seam exists.
-  sec.style.display=(S.tool==='seam'||seams.length)?'':'none';
+  // Show the section while the Seam tool is active or any seam/fold exists.
+  const folds=(S.assembly&&S.assembly.folds)||[];
+  sec.style.display=(S.tool==='seam'||seams.length||folds.length)?'':'none';
+  // Edges/Fold sub-mode toggle (Seam tool only).
+  const sm=document.getElementById('seam-mode');
+  if(sm){ sm.style.display = S.tool==='seam' ? 'flex' : 'none';
+    const be=document.getElementById('sm-edge'), bf=document.getElementById('sm-fold');
+    if(be&&bf){ be.setAttribute('aria-pressed',String(!S.foldMode)); bf.setAttribute('aria-pressed',String(S.foldMode));
+      be.style.opacity=S.foldMode?'0.5':'1'; bf.style.opacity=S.foldMode?'1':'0.5'; } }
   const btn=document.getElementById('btn-new-seam');
   if(btn){ const n=S.seamSel.length; btn.disabled=!n; btn.textContent=n?`+ New seam (${n} edge${n!==1?'s':''})`:'+ New seam from selection'; }
   box.innerHTML = seams.length ? seams.map(s=>{
@@ -4487,6 +4579,77 @@ function locateSeamMember(shapeId, edge){
   setTool('select');
   S.selId=shapeId; S.selEdge={id:shapeId, edge};
   renderContent();
+}
+
+// ── Folds (v15): per-piece creases the 3D preview bends about (mountain +, valley −). ──
+// Select/deselect a fold in the panel → highlights its crease on the canvas (any tool).
+function selectFold(id){ S.activeFold = (S.activeFold===id ? null : id); renderContent(); }
+function uniqueFoldName(name, exceptId){
+  const taken=new Set(S.assembly.folds.filter(f=>f.id!==exceptId).map(f=>f.name));
+  if(!taken.has(name)) return name;
+  let i=2; while(taken.has(name+' '+i)) i++; return name+' '+i;
+}
+function renameFold(id, name){
+  const f=S.assembly.folds.find(x=>x.id===id); if(!f) return;
+  name=uniqueFoldName((name||'').trim()||('fold '+id), id);
+  if(name===f.name){ renderContent(); return; }   // re-render to revert the input if normalised back
+  pushHist(); f.name=name; renderContent();
+}
+// Crease angle in degrees: mountain (>0) folds toward the viewer, valley (<0) away; 0 = flat.
+function setFoldAngle(id, raw){
+  const f=S.assembly.folds.find(x=>x.id===id); if(!f) return;
+  let val=Number(raw); if(!isFinite(val)) val=0;
+  val=Math.max(-180,Math.min(180, Math.round(val)));
+  if(f.angle===val){ renderContent(); return; }
+  pushHist(); f.angle=val; renderContent();
+}
+function deleteFold(id){
+  confirmModal('Delete this fold crease? (the piece is untouched)',{title:'Delete Fold', ok:'Delete', danger:true}).then(ok=>{
+    if(!ok) return;
+    pushHist();
+    S.assembly.folds=S.assembly.folds.filter(f=>f.id!==id);
+    if(S.activeFold===id) S.activeFold=null;
+    renderContent();
+  });
+}
+// Highlight a fold + select its owning piece so it's visible in any tool.
+function locateFold(id){
+  const f=S.assembly.folds.find(x=>x.id===id); if(!f||!getShape(f.shape)) return;
+  S.activeFold=id; S.selId=f.shape;
+  renderContent();
+}
+// Folds list + per-fold editor (mirrors the seam idioms). Section visibility is handled in renderSeamsList.
+function renderFoldsList(){
+  const box=document.getElementById('folds-list'), ed=document.getElementById('fold-editor'),
+        hd=document.getElementById('folds-hd');
+  if(!box) return;
+  const folds=(S.assembly&&S.assembly.folds)||[];
+  // Only surface the Folds block once a crease exists (or the Seam tool is in fold mode).
+  const show=folds.length || (S.tool==='seam'&&S.foldMode);
+  if(hd) hd.style.display=show?'':'none';
+  box.style.display=show?'':'none';
+  box.innerHTML = folds.length ? folds.map(f=>{
+    const on=f.id===S.activeFold, sh=getShape(f.shape), nm=sh?layerName(sh):'(missing)';
+    const a=f.angle||0, badge=a>0?'⛰ '+a+'°':a<0?'⌄ '+a+'°':'flat';
+    return `<div class="lay-row${on?' sel':''}" role="button" tabindex="0" aria-label="Fold ${escapeXML(f.name)} on ${escapeXML(nm)}, ${badge}" onclick="selectFold(${f.id})" onkeydown="kbActivate(event)">`
+      +`<span class="seam-chip" style="background:#a78bfa"></span>`
+      +`<span class="lay-name" title="on ${escapeXML(nm)}">${escapeXML(f.name)}</span>`
+      +`<span class="lay-op-v" style="width:auto;white-space:nowrap" title="${a>0?'mountain':a<0?'valley':'flat'} ${a}°">${badge}</span>`
+      +`<button class="lay-arr" title="Find on canvas" onclick="event.stopPropagation();locateFold(${f.id})">◎</button>`
+      +`<button class="lay-arr" title="Delete fold" onclick="event.stopPropagation();deleteFold(${f.id})">✕</button>`
+      +`</div>`;
+  }).join('') : (show?'<p class="p-note" style="opacity:.75">In Fold mode, click two points on a piece to draw a crease.</p>':'');
+  const fold = S.activeFold!=null ? folds.find(f=>f.id===S.activeFold) : null;
+  if(ed) ed.innerHTML = fold ? foldEditorHTML(fold) : '';
+}
+function foldEditorHTML(fold){
+  const sh=getShape(fold.shape), nm=sh?layerName(sh):'(missing)';
+  let h=`<div class="p-grp" style="margin-top:10px;display:flex;align-items:center;gap:6px"><span class="seam-chip" style="background:#a78bfa"></span>Editing fold</div>`;
+  h+=`<div class="p-row"><span class="p-lbl">Name</span><input class="p-inp" id="fold-name" type="text" value="${escapeXML(fold.name)}" onchange="renameFold(${fold.id}, this.value)"></div>`;
+  h+=`<div class="p-row"><span class="p-lbl">On</span><span style="opacity:.8;font-size:12px" title="${escapeXML(nm)}">${escapeXML(nm)}</span></div>`;
+  h+=`<div class="p-row"><span class="p-lbl" title="Fold angle: mountain + (toward viewer), valley − (away), 0 = flat">Angle</span><input class="p-inp" id="fold-angle" type="number" step="5" min="-180" max="180" value="${fold.angle||0}" onchange="setFoldAngle(${fold.id}, this.value)"></div>`;
+  h+=`<p class="p-note" style="opacity:.75">Mountain <b>+</b> / valley <b>−</b>. The crease bends this much in the 3D preview.</p>`;
+  return h;
 }
 function toggleSnap(){
   S.snap=!S.snap;
@@ -5030,7 +5193,7 @@ function applyLoadedData(data){
   S.selArtboard=null;
   // Assembly (v15): absent in older files → empty. Normalise, then prune refs to this doc's geometry.
   S.assembly=normAssembly(data.assembly);
-  S.seamSel=[]; S.activeSeam=null;
+  S.seamSel=[]; S.activeSeam=null; S.activeFold=null; S.foldDraft=null;
   validateSeams({quiet:true});
   applyPageDims();
   S.selId=null; S.hist=[]; S.future=[];

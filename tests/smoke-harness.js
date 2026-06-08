@@ -1485,6 +1485,66 @@ window.__SMOKE__ = function (spec) {
       S.selEdge = { id: rectId, edge: 0 };   // a free edge → no membership
       updatePropsPanel();
       assert('seam: free edge hides membership', document.getElementById('seam-membership').style.display === 'none');
+
+      // ── Folds (v15): crease authoring via the Seam tool's fold sub-mode ──
+      setTool('seam'); setFoldMode(true);
+      assert('fold: fold mode engaged', S.foldMode === true);
+      const nf0 = S.assembly.folds.length;
+      foldClick(20, 40);                       // 1st click → pick the rect + start point
+      assert('fold: first click starts a draft', !!S.foldDraft && S.foldDraft.shape === rectId, JSON.stringify(S.foldDraft));
+      assert('fold: draft adds no fold yet', S.assembly.folds.length === nf0);
+      foldClick(80, 40);                       // 2nd click → commit the crease
+      assert('fold: second click commits a crease', S.assembly.folds.length === nf0 + 1);
+      assert('fold: draft cleared after commit', S.foldDraft === null);
+      const fold = S.assembly.folds[S.assembly.folds.length - 1], fid = fold.id;
+      assert('fold: crease owns the clicked piece', fold.shape === rectId);
+      assert('fold: endpoints stored', fold.a.x === 20 && fold.b.x === 80 && fold.a.y === 40, JSON.stringify([fold.a, fold.b]));
+      assert('fold: default angle 0', fold.angle === 0);
+      // too-short crease is rejected (draft lingers so the user can retry)
+      const nf1 = S.assembly.folds.length;
+      foldClick(40, 40); foldClick(40, 40.2);
+      assert('fold: zero-length crease rejected', S.assembly.folds.length === nf1);
+      S.foldDraft = null;
+      // edit: select + angle (mountain +, valley -, clamped) + rename
+      selectFold(fid);
+      assert('fold: selectFold sets active', S.activeFold === fid);
+      setFoldAngle(fid, '90');
+      assert('fold: angle set to mountain 90', fold.angle === 90);
+      setFoldAngle(fid, '-45');
+      assert('fold: valley angle -45', fold.angle === -45);
+      setFoldAngle(fid, '999');
+      assert('fold: angle clamped to 180', fold.angle === 180);
+      renameFold(fid, 'flap crease');
+      assert('fold: rename applies', fold.name === 'flap crease');
+      // panel + canvas rendering
+      renderContent();
+      assert('fold: list row rendered', document.getElementById('folds-list').innerHTML.includes('flap crease'));
+      assert('fold: editor shows angle field', document.getElementById('fold-editor').innerHTML.includes('fold-angle'));
+      assert('fold: canvas crease drawn (violet)', document.getElementById('vp').innerHTML.includes('a78bfa'));
+      // locate selects the owning piece + highlights the crease in any tool
+      setTool('select');
+      locateFold(fid);
+      assert('fold: locate selects the owning piece', S.selId === rectId && S.activeFold === fid);
+      // undo / redo (assembly rides in the doc snapshot)
+      setTool('seam'); setFoldMode(true);
+      const nb = S.assembly.folds.length;
+      foldClick(10, 10); foldClick(90, 70);
+      assert('fold: new crease added', S.assembly.folds.length === nb + 1);
+      undo();
+      assert('fold: undo removes the crease', S.assembly.folds.length === nb);
+      redo();
+      assert('fold: redo restores the crease', S.assembly.folds.length === nb + 1);
+      // round-trip through the .lpd
+      const wireF = JSON.parse(JSON.stringify(buildSaveData()));
+      applyLoadedData(wireF);
+      const rf = S.assembly.folds.find(f => f.name === 'flap crease');
+      assert('fold: survives round-trip (name+angle+shape)', rf && rf.angle === 180 && rf.shape === rectId, JSON.stringify(rf));
+      assert('fold: round-trip cleared the active selection', S.activeFold === null);
+      // deleting the owning piece prunes its creases (validateSeams)
+      const pruneId = S.assembly.folds[0].shape, hadFolds = S.assembly.folds.length;
+      S.shapes = S.shapes.filter(s => s.id !== pruneId);
+      validateSeams({ quiet: true });
+      assert('fold: creases pruned when their piece is deleted', S.assembly.folds.length < hadFolds && S.assembly.folds.every(f => f.shape !== pruneId));
     },
 
     // ── zoom-fit bounding box correctness ──

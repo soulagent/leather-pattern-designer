@@ -246,6 +246,32 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.3 — 2026-06-08
+
+### Folds authoring (Step 6 of 6) — completes the seam plan
+The original 6-step seam/assembly plan is now **fully done**. Folds were already reserved in schema
+**v15** (`assembly.folds[]` + `normAssembly`), so this is authoring UI only — **no save-format bump**.
+
+- **Fold sub-mode** — the Seam tool gains an **Edges / Fold** toggle (top of the Assembly panel).
+  In Fold mode you click **two points on a piece** to drop a crease: 1st click picks the piece under
+  the cursor (`hitShape`) + start point, 2nd commits. A rubber-band line + start dot track the cursor;
+  **Esc** cancels the in-progress crease. Endpoints snap to nearby anchors/corners (`foldSnapLocal`),
+  else grid, and are stored in the piece's **local frame** so the crease rotates with the shape.
+  `S.foldMode` / `S.foldDraft` are transient (never saved); commit goes through `pushHist`.
+- **Fold data** — `{id, shape, a:{x,y}, b:{x,y}, angle, name}` pushed into `assembly.folds[]`.
+  `angle` = **mountain + / valley −** (−180…180), the dihedral the 3D preview will bend about.
+- **Canvas** — committed creases render as a **dashed violet** line (`class="seam-aid"` → screen-only,
+  stripped from print + SVG/PNG export), each wrapped in its owning piece's transform. All folds show
+  in the Seam tool; elsewhere only the panel-selected one, drawn thicker + labelled with its angle.
+- **Assembly panel — Folds list/editor** — one row per crease (violet chip, name, owning piece, a
+  ⛰/⌄/flat angle badge, **locate ◎** + **delete ✕**, keyboard-activatable). Per-fold editor: name +
+  angle. `S.activeFold` highlights the crease on canvas in any tool; cleared on new/load/tab-swap and
+  pruned by `validateSeams` when its piece is deleted (undo restores it — folds ride in the snapshot).
+- `seam` smoke 43 → **67** (24 new fold asserts: create/draft/reject/select/angle-clamp/rename/list/
+  locate/undo-redo/round-trip/prune); full suite **465/465**. Built **russet-marten-V14**.
+
+---
+
 ## v0.8.2 — 2026-06-08
 
 ### Seam problem hints + Select-tool touchpoint (Step 5 of 6)
