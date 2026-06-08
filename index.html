@@ -616,6 +616,14 @@ body.light .qs-foot{border-top-color:#dde0ea}
         </div>
 
         <div class="help-sec">
+          <div class="help-sec-h">Seam / Assembly (3D preview prep)</div>
+          <div class="help-row"><span class="hk"><kbd class="k">S</kbd></span><span class="hd">Seam tool</span></div>
+          <div class="help-row"><span class="hk">Click edge</span><span class="hd">Add a free edge to the pick (amber), or select an existing seam</span></div>
+          <div class="help-row"><span class="hk"><kbd class="k">Esc</kbd></span><span class="hd">Clear the pending picks</span></div>
+          <div class="help-p">Mark which edges <b>join</b> when the flat pieces are assembled. With the <b>Seam tool</b> (S), click the edges that meet, then <b>New seam</b> in the <b>Assembly</b> panel. A seam can hold 2+ edges — even 3+ stacked (e.g. a card-holder spine). Click a seam to rename it, set its type (stitch / fold / glue), order and allowance, or locate/remove member edges. Seams are <b>screen-only metadata</b> for the planned Leather Studio 3D preview — they never affect printing or export.</div>
+        </div>
+
+        <div class="help-sec">
           <div class="help-sec-h">Print &amp; Export (cut at true scale)</div>
           <div class="help-p"><kbd class="k">Ctrl+P</kbd> resets to the artboard and prints it at true physical size (A4 prints A4, etc.) — UI hidden, shapes in black, stitch marks in dark red; choose “Save as PDF” in the dialog. <b>Export SVG</b> gives a vector file at true mm scale for Inkscape/Illustrator. <b>.lpd</b> (Leather Pattern Document) is the editable native save.</div>
         </div>
@@ -686,7 +694,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.0</div>
+  <div id="app-title">Leather Pattern Designer v0.8.1</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -1122,8 +1130,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.0';
-const BUILD_TAG = 'scarlet-merlin-V11';
+const APP_VERSION = 'v0.8.1';
+const BUILD_TAG = 'umber-stoat-V12';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {

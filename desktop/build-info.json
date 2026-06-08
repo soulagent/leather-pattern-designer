@@ -1,8 +1,8 @@
 {
   "_comment": "Build ledger for the packaged desktop exe. APP_VERSION (dev/working number) lives in index.html; each /build mints a new buildTag = two random words + -V<buildCount> and appends it to history. On the next /build: increment buildCount, generate two fresh random words, set buildTag, update BUILD_TAG in index.html, then cargo tauri build.",
-  "devVersion": "0.8.0",
-  "buildCount": 11,
-  "buildTag": "scarlet-merlin-V11",
+  "devVersion": "0.8.1",
+  "buildCount": 12,
+  "buildTag": "umber-stoat-V12",
   "history": [
     { "v": 1, "tag": "slate-heron-V1", "dev": "0.6.2", "date": "2026-06-03" },
     { "v": 2, "tag": "copper-marten-V2", "dev": "0.6.2", "date": "2026-06-03" },
@@ -14,6 +14,7 @@
     { "v": 8, "tag": "maple-osprey-V8", "dev": "0.7.20", "date": "2026-06-05" },
     { "v": 9, "tag": "tawny-kestrel-V9", "dev": "0.7.22", "date": "2026-06-07" },
     { "v": 10, "tag": "indigo-plover-V10", "dev": "0.7.24", "date": "2026-06-07" },
-    { "v": 11, "tag": "scarlet-merlin-V11", "dev": "0.8.0", "date": "2026-06-08", "note": "seam/assembly schema v15 + Seam tool (edge selection)" }
+    { "v": 11, "tag": "scarlet-merlin-V11", "dev": "0.8.0", "date": "2026-06-08", "note": "seam/assembly schema v15 + Seam tool (edge selection)" },
+    { "v": 12, "tag": "umber-stoat-V12", "dev": "0.8.1", "date": "2026-06-08", "note": "Assembly panel + per-seam editor (create/name/type/order/allowance/members)" }
   ]
 }

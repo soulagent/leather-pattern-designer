@@ -1921,7 +1921,7 @@ dependencies = [
 
 [[package]]
 name = "leather-pattern-designer"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "serde_json",
  "tauri",

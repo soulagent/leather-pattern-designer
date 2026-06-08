@@ -246,6 +246,39 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.1 — 2026-06-08
+
+### Seam authoring — Assembly panel + per-seam editor (Steps 3–4 of 6)
+Builds on v0.8.0's data foundation + Seam tool. The Seam tool is now **end-to-end usable**: create,
+name, type, and manage seams. (Remaining: Step 5 Tier-1 problem hints + Select-tool touchpoint, then
+folds authoring.)
+
+**Step 3 — Assembly panel.**
+- New collapsible **Assembly** `.p-sec` (auto-promoted to an a11y `role=button` header), shown when the
+  Seam tool is active or any seam exists. **`createSeamFromSelection()`** groups the pending picks into
+  an `assembly.seams[]` entry (`pushHist` → undoable; auto-name "seam N", type stitch), clears the picks
+  and selects the new seam. Seam **list** rows: a stable per-seam colour chip (`seamColor` — golden-angle
+  hue), name, type badge (✄/⟋/●), member count, and delete (themed `confirmModal`). Rows are focusable
+  `role=button` and select/highlight their seam.
+- **Canvas overlay**: committed seam member-edges render in the seam's colour with its name label — ALL
+  seams in the Seam tool, or just the panel-selected one in other tools. Tagged **`class="seam-aid"`**
+  and stripped from print (`@media print`) + SVG/PNG export (`artboardSVGClone`). Clicking a member edge
+  in the Seam tool selects its seam. New transient `S.activeSeam` (resets on doc-swap/load; cleared by
+  `validateSeams` if its seam is pruned).
+
+**Step 4 — per-seam editor (`seamEditorHTML`).**
+- Fields: **name** (unique within the doc, auto-suffixed via `uniqueSeamName`), **type**
+  stitch/fold/glue, **order** (assembly step), **allowance** mm (placeholder = `defMargin`).
+- **Members** list — each `Shape name · edge N` with **locate** (`locateSeamMember` → Select tool,
+  select the shape + highlight the edge) and **remove**; emptying a seam drops it. **Add** the pending
+  picks to the open seam (`addPicksToSeam`, skips edges already in a seam).
+- Helpers `renameSeam`/`setSeamType`/`setSeamField`/`addPicksToSeam`/`removeSeamMember`. Every edit goes
+  through `pushHist` and round-trips in the `.lpd`.
+- `seam` smoke feature 11 → **37**; full suite **435/435**. Built **umber-stoat-V12**. Schema **v15**
+  unchanged.
+
+---
+
 ## v0.8.0 — 2026-06-08
 
 ### Seam / assembly model — schema v15 + Seam tool (first cut)
