@@ -1394,9 +1394,75 @@ window.__SMOKE__ = function (spec) {
       S.shapes[0].hidden = false; S.shapes[0].locked = true;
       assert('seam: locked shape edge not pickable', hitAnyEdge(50, 0) === null);
       S.shapes[0].locked = false;
+      // Step 3 — create a seam from the pending picks (seamSel currently has rect edge 2)
+      toggleSeamPick(rectId, 0);   // → picks {edge 2, edge 0}
+      createSeamFromSelection();
+      assert('seam: create makes one seam', S.assembly.seams.length === 1, `n=${S.assembly.seams.length}`);
+      assert('seam: created seam has 2 members', S.assembly.seams[0].members.length === 2);
+      assert('seam: create clears pending picks', S.seamSel.length === 0);
+      assert('seam: created seam is active', S.activeSeam === S.assembly.seams[0].id);
+      assert('seam: seamForEdge resolves a committed member', seamForEdge(rectId, 2) === S.assembly.seams[0]);
+      assert('seam: Assembly section is shown', document.getElementById('sec-assembly').style.display !== 'none');
+      assert('seam: list row rendered', document.getElementById('seams-list').innerHTML.includes('seam 1'));
+      assert('seam: canvas overlay drawn (seam-aid)', document.getElementById('vp').innerHTML.includes('seam-aid'));
+      selectSeam(S.assembly.seams[0].id);
+      assert('seam: selectSeam toggles off the active seam', S.activeSeam === null);
+      undo();
+      assert('seam: undo removes the created seam', S.assembly.seams.length === 0);
+      redo();
+      assert('seam: redo restores the seam', S.assembly.seams.length === 1);
+      const n0 = S.assembly.seams.length; S.seamSel = [];
+      createSeamFromSelection();
+      assert('seam: create with no picks is a no-op', S.assembly.seams.length === n0);
+      toggleSeamPick(rectId, 1);
       setTool('select');
       assert('seam: leaving the tool clears picks', S.seamSel.length === 0);
       assert('seam: circle id unused (sanity)', typeof circId === 'number');
+
+      // Step 4 — per-seam editor (operating on the one seam restored by redo above)
+      const sid = S.assembly.seams[0].id;
+      renameSeam(sid, 'spine');
+      assert('seam: rename applies', S.assembly.seams[0].name === 'spine');
+      setSeamType(sid, 'fold');
+      assert('seam: type set to fold', S.assembly.seams[0].type === 'fold');
+      setSeamField(sid, 'order', '2');
+      assert('seam: order set from string', S.assembly.seams[0].order === 2);
+      setSeamField(sid, 'allowance', '4.5');
+      assert('seam: allowance set', S.assembly.seams[0].allowance === 4.5);
+      setSeamField(sid, 'order', '');
+      assert('seam: blank order clears to null', S.assembly.seams[0].order === null);
+      // uniqueness: a 2nd seam renamed onto "spine" is auto-suffixed
+      S.seamSel = [{ id: rectId, edge: 1 }];
+      createSeamFromSelection();
+      const sid2 = S.assembly.seams[1].id;
+      renameSeam(sid2, 'spine');
+      assert('seam: duplicate name auto-suffixed', S.assembly.seams[1].name === 'spine 2', S.assembly.seams[1].name);
+      // add a picked (free) edge to the first seam
+      S.seamSel = [{ id: rectId, edge: 3 }];
+      const beforeAdd = S.assembly.seams[0].members.length;
+      addPicksToSeam(sid);
+      assert('seam: addPicksToSeam grows members', S.assembly.seams[0].members.length === beforeAdd + 1);
+      assert('seam: addPicksToSeam clears picks', S.seamSel.length === 0);
+      // remove a member
+      const m0 = S.assembly.seams[0].members.length;
+      removeSeamMember(sid, 0);
+      assert('seam: removeSeamMember shrinks', S.assembly.seams[0].members.length === m0 - 1);
+      // locate selects the shape + edge in the Select tool
+      const lm = S.assembly.seams[0].members[0];
+      locateSeamMember(lm.shape, lm.edge);
+      assert('seam: locate switches to Select tool', S.tool === 'select');
+      assert('seam: locate selects the shape', S.selId === lm.shape);
+      assert('seam: locate highlights the edge', S.selEdge && S.selEdge.edge === lm.edge);
+      // edited fields survive a save/load round-trip
+      const wireE = JSON.parse(JSON.stringify(buildSaveData()));
+      applyLoadedData(wireE);
+      const rs = S.assembly.seams.find(s => s.name === 'spine');
+      assert('seam: edited fields survive round-trip', rs && rs.type === 'fold' && rs.allowance === 4.5, JSON.stringify(rs));
+      // removing the last member of a 1-member seam drops the seam
+      const solo = S.assembly.seams.find(s => s.members.length === 1) || S.assembly.seams[S.assembly.seams.length - 1];
+      const soloId = solo.id, soloLen = solo.members.length, nSeams = S.assembly.seams.length;
+      for (let k = soloLen - 1; k >= 0; k--) removeSeamMember(soloId, 0);
+      assert('seam: emptying a seam removes it', S.assembly.seams.length === nSeams - 1 && !S.assembly.seams.some(s => s.id === soloId));
     },
 
     // ── zoom-fit bounding box correctness ──

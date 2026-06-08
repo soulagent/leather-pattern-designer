@@ -138,6 +138,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .sw.active{border-color:#fff;box-shadow:0 0 0 1px #000}
 /* ── LAYERS ── */
 #layers-list{display:flex;flex-direction:column;gap:2px;max-height:300px;overflow-y:auto}
+.seam-chip{width:11px;height:11px;border-radius:3px;flex-shrink:0;margin-right:2px;border:1px solid rgba(0,0,0,.25)}
 /* artboard group header (shapes nest under it when there are multiple artboards / unplaced shapes) */
 .lay-group{display:flex;align-items:center;gap:5px;padding:4px 4px;margin-top:4px;border-radius:4px;cursor:pointer;
   font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-heading);font-weight:700;user-select:none}
@@ -223,6 +224,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
   #cvs{width:100%!important;height:100%!important}
   rect.grid-bg,#rul,.handle,.pen-anchor,.pen-anchor-first,.pen-cp,.pen-cp-line,.pen-preview{display:none!important}
   .artboard-rect,.artboard-label{display:none!important} /* page outline is a screen aid — never print it */
+  .seam-aid{display:none!important} /* seam/assembly overlays are screen-only metadata — never print */
   .sh-fill{fill:rgba(0,0,0,.03)!important}
   .sh-stroke{stroke:#111!important}
   .st-line{stroke:#800!important}
@@ -944,6 +946,19 @@ body.light .qs-foot{border-top-color:#dde0ea}
         <p class="p-note">● = active (its page size/name is what Settings ▸ Page edits, and what prints). Click a row to make it active. Use the <b>Artboard tool</b> (A) to drag artboards on the canvas.</p>
       </div>
     </div>
+
+    <!-- Assembly / Seams (v15) -->
+    <div class="p-sec" id="sec-assembly" style="display:none">
+      <div class="p-hd" id="hd-assembly" onclick="toggleSection('assembly')">
+        <span>Assembly</span><span class="p-tog">▾</span>
+      </div>
+      <div class="p-sec-body" id="body-assembly">
+        <div id="seams-list"></div>
+        <button class="p-btn" id="btn-new-seam" style="width:100%;margin-top:6px" onclick="createSeamFromSelection()">+ New seam from selection</button>
+        <div id="seam-editor"></div>
+        <p class="p-note">With the <b>Seam tool</b> (S), click the edges that join, then create a seam. Click a seam to edit it. Edges sharing a seam join in the 3D assembly preview. Seams are screen-only — never printed.</p>
+      </div>
+    </div>
   </div><!-- #props -->
 </div><!-- #main -->
 
@@ -1308,8 +1323,9 @@ const S = {
   selAnchor:null,    // index of the selected path anchor (for corner/smooth conversion), or null
   hoverEdge:-1,      // edge index under the cursor on the selected shape, or -1
   // Seam tool (v15): transient, NOT per-document, NOT saved. `seamSel` = pending edge picks being
-  // grouped into a seam (each {id,edge}); `hoverSeam` = {id,edge} under the cursor in the Seam tool.
-  seamSel:[], hoverSeam:null,
+  // grouped into a seam (each {id,edge}); `hoverSeam` = {id,edge} under the cursor in the Seam tool;
+  // `activeSeam` = id of the seam selected in the Assembly panel (highlighted on canvas).
+  seamSel:[], hoverSeam:null, activeSeam:null,
   movingEdge:false, edgeDrag:null,  // path edge translate state
   spaceDown:false, panning:false, panStart:null, panPanStart:null,
   cursorMM:{x:0,y:0}, hoverHandle:null, hoverShape:null,
@@ -1421,7 +1437,7 @@ function tabTitle(){
 function syncActiveTabMeta(){ const t=S.tabs[S.activeTab]; if(t) t.title = tabTitle(); }
 // Shared refresh after the document slice in S is replaced (switch / new / close / load).
 function afterDocSwap(){
-  S.selEdge=null; S.selAnchor=null;
+  S.selEdge=null; S.selAnchor=null; S.seamSel=[]; S.activeSeam=null;
   if(!S.assembly) S.assembly={version:1, seams:[], folds:[]};
   validateSeams({quiet:true});   // rebuild the derived edge->seam map for the now-active doc
   applyPageDims(); updatePageMenu(); updatePrintPageSize();
@@ -2261,6 +2277,7 @@ function validateSeams(opts){
   dropped += (A.folds||[]).length - folds.length;
   A.seams = seams; A.folds = folds;
   S._seamMap = map;
+  if(S.activeSeam!=null && !seams.some(s=>s.id===S.activeSeam)) S.activeSeam=null; // selection pruned with its seam
   if(dropped && !opts.quiet) flashSaved(dropped+' seam reference'+(dropped>1?'s':'')+' dropped (geometry changed)');
 }
 // The seam a given edge belongs to, or null. (Derived map; rebuilt by validateSeams.)
@@ -2977,21 +2994,39 @@ function renderContent() {
   // Commit the edit overlay, rotated to match the selected shape.
   if(ov){ const ssel=getShape(S.selId); h+=ssel?wrapRot(ssel,ov):ov; }
 
+  // ── Seam / assembly overlays (screen-only; class `seam-aid` is stripped from print + export) ──
+  // Committed seams: in the Seam tool show ALL; in other tools show only the panel-selected one.
+  if(S.assembly && (S.tool==='seam' || S.activeSeam!=null)){
+    const seams=(S.tool==='seam') ? S.assembly.seams : S.assembly.seams.filter(s=>s.id===S.activeSeam);
+    const halo=S.light?'#fff':'#0d0d1f';
+    for(const seam of seams){
+      const col=seamColor(seam.id), active=seam.id===S.activeSeam;
+      seam.members.forEach((m,mi)=>{
+        const s=getShape(m.shape); if(!s) return;
+        const d=edgePathD(s,m.edge);
+        let g=`<path class="seam-aid" d="${d}" fill="none" stroke="${col}" stroke-opacity="${active?0.95:0.6}" stroke-width="${(active?4.2:2.6)/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+        if(mi===0){ const mid=edgeMidpoint(s,m.edge);
+          g+=`<text class="seam-aid" x="${mid.x}" y="${mid.y-6/(S.zoom*PX)}" fill="${col}" font-size="${11/(S.zoom*PX)}" font-family="system-ui" text-anchor="middle" paint-order="stroke" stroke="${halo}" stroke-width="${2.5/(S.zoom*PX)}" stroke-linejoin="round">${escapeXML(seam.name)}</text>`;
+        }
+        h+=wrapRot(s, g);
+      });
+    }
+  }
   // Seam tool: pending edge picks (amber + index badge) and the hovered edge (cyan). Each is wrapped
   // in ITS OWN shape's transform (picks span multiple shapes, unlike the single-shape edit overlay).
   if(S.tool==='seam'){
     if(S.hoverSeam){
       const s=getShape(S.hoverSeam.id);
       if(s && seamPickIndex(S.hoverSeam.id, S.hoverSeam.edge)<0)
-        h+=wrapRot(s, `<path d="${edgePathD(s,S.hoverSeam.edge)}" fill="none" stroke="rgba(77,210,255,0.7)" stroke-width="${2/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`);
+        h+=wrapRot(s, `<path class="seam-aid" d="${edgePathD(s,S.hoverSeam.edge)}" fill="none" stroke="rgba(77,210,255,0.7)" stroke-width="${2/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`);
     }
     S.seamSel.forEach((p,i)=>{
       const s=getShape(p.id); if(!s) return;
       const d=edgePathD(s,p.edge), mid=edgeMidpoint(s,p.edge), r=5.5/(S.zoom*PX);
-      let g=`<path d="${d}" fill="none" stroke="rgba(245,158,11,0.30)" stroke-width="${9/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
-      g+=`<path d="${d}" fill="none" stroke="#f59e0b" stroke-width="${3.4/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
-      g+=`<circle cx="${mid.x}" cy="${mid.y}" r="${r}" fill="#f59e0b"/>`;
-      g+=`<text x="${mid.x}" y="${mid.y}" fill="#1a1205" font-size="${7/(S.zoom*PX)}" font-family="system-ui" font-weight="700" text-anchor="middle" dominant-baseline="central">${i+1}</text>`;
+      let g=`<path class="seam-aid" d="${d}" fill="none" stroke="rgba(245,158,11,0.30)" stroke-width="${9/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+      g+=`<path class="seam-aid" d="${d}" fill="none" stroke="#f59e0b" stroke-width="${3.4/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+      g+=`<circle class="seam-aid" cx="${mid.x}" cy="${mid.y}" r="${r}" fill="#f59e0b"/>`;
+      g+=`<text class="seam-aid" x="${mid.x}" y="${mid.y}" fill="#1a1205" font-size="${7/(S.zoom*PX)}" font-family="system-ui" font-weight="700" text-anchor="middle" dominant-baseline="central">${i+1}</text>`;
       h+=wrapRot(s, g);
     });
   }
@@ -3020,6 +3055,7 @@ function renderContent() {
   updatePropsPanel();
   renderLayers();
   renderArtboards();
+  renderSeamsList();
   updateStatus();
 }
 
@@ -3496,10 +3532,14 @@ function onDown(e) {
   }
 
   if(S.tool==='seam'){
-    // Seam tool: click an edge of any shape to toggle it into the pending seam selection. Empty
-    // clicks are ignored (so they don't wipe picks). Grouping into a named seam is the Assembly panel.
+    // Seam tool: clicking an edge that already belongs to a seam SELECTS that seam (for editing);
+    // clicking a free edge toggles it into the pending selection. Empty clicks are ignored.
     const hit=hitAnyEdge(mm.x,mm.y);
-    if(hit) toggleSeamPick(hit.id, hit.edge);
+    if(hit){
+      const seam=seamForEdge(hit.id, hit.edge);
+      if(seam) S.activeSeam=seam.id;
+      else toggleSeamPick(hit.id, hit.edge);
+    }
     S.down=false;              // no drag in this tool — let onUp early-return
     renderContent();
     return;
@@ -4279,6 +4319,125 @@ function renderArtboards(){
       +`</div>`;
   }).join('');
 }
+// ── Assembly / seams panel (v15) ────────────────────────────────────────────
+// Stable per-seam colour from its id (golden-angle hue spread → distinct neighbours).
+function seamColor(id){ return `hsl(${(id*137.508)%360} 72% 55%)`; }
+const SEAM_TYPE_BADGE={stitch:'✄', fold:'⟋', glue:'●'};
+// Group the pending edge picks (S.seamSel) into a new seam. One undo entry (the snapshot already
+// captures S.assembly). A 1-member seam is allowed (an edge finish); 2+ is a join.
+function createSeamFromSelection(){
+  if(!S.seamSel.length){ flashSaved('Pick edges with the Seam tool first'); return; }
+  pushHist();
+  const id=(S.assembly.seams.reduce((m,s)=>Math.max(m,s.id),0))+1;
+  S.assembly.seams.push({ id, name:'seam '+(S.assembly.seams.length+1), type:'stitch',
+    order:null, allowance:null, notes:'', members:S.seamSel.map(p=>({shape:p.id, edge:p.edge})) });
+  S.seamSel=[]; S.activeSeam=id;
+  validateSeams({quiet:true});      // rebuild the edge→seam map
+  renderContent();
+  flashSaved('Seam created');
+}
+function deleteSeam(id){
+  confirmModal('Delete this seam? (the pieces are untouched)',{title:'Delete Seam', ok:'Delete', danger:true}).then(ok=>{
+    if(!ok) return;
+    pushHist();
+    S.assembly.seams=S.assembly.seams.filter(s=>s.id!==id);
+    if(S.activeSeam===id) S.activeSeam=null;
+    validateSeams({quiet:true});
+    renderContent();
+  });
+}
+// Select/deselect a seam in the panel → highlights its member edges on the canvas (any tool).
+function selectSeam(id){ S.activeSeam = (S.activeSeam===id ? null : id); renderContent(); }
+function renderSeamsList(){
+  const box=document.getElementById('seams-list'), sec=document.getElementById('sec-assembly'), ed=document.getElementById('seam-editor');
+  if(!box||!sec) return;
+  const seams=(S.assembly&&S.assembly.seams)||[];
+  // Show the section while the Seam tool is active or any seam exists.
+  sec.style.display=(S.tool==='seam'||seams.length)?'':'none';
+  const btn=document.getElementById('btn-new-seam');
+  if(btn){ const n=S.seamSel.length; btn.disabled=!n; btn.textContent=n?`+ New seam (${n} edge${n!==1?'s':''})`:'+ New seam from selection'; }
+  box.innerHTML = seams.length ? seams.map(s=>{
+    const on=s.id===S.activeSeam, mc=s.members.length, badge=SEAM_TYPE_BADGE[s.type]||'✄';
+    return `<div class="lay-row${on?' sel':''}" role="button" tabindex="0" aria-label="Seam ${escapeXML(s.name)}, ${mc} edge${mc!==1?'s':''}" onclick="selectSeam(${s.id})" onkeydown="kbActivate(event)">`
+      +`<span class="seam-chip" style="background:${seamColor(s.id)}"></span>`
+      +`<span class="lay-name">${escapeXML(s.name)}</span>`
+      +`<span class="lay-op-v" style="width:auto;white-space:nowrap" title="${s.type}">${badge} ${mc}</span>`
+      +`<button class="lay-arr" title="Delete seam" onclick="event.stopPropagation();deleteSeam(${s.id})">✕</button>`
+      +`</div>`;
+  }).join('') : '<p class="p-note" style="opacity:.75">No seams yet. With the Seam tool, click the edges that join, then “New seam”.</p>';
+  // Per-seam editor (Step 4): shown for the panel-selected seam.
+  const seam = S.activeSeam!=null ? seams.find(s=>s.id===S.activeSeam) : null;
+  if(ed) ed.innerHTML = seam ? seamEditorHTML(seam) : '';
+}
+// Markup for the selected-seam editor: name / type / order / allowance + member list.
+function seamEditorHTML(seam){
+  const opt=(v,lbl)=>`<option value="${v}"${v===seam.type?' selected':''}>${lbl}</option>`;
+  let h=`<div class="p-grp" style="margin-top:10px;display:flex;align-items:center;gap:6px"><span class="seam-chip" style="background:${seamColor(seam.id)}"></span>Editing seam</div>`;
+  h+=`<div class="p-row"><span class="p-lbl">Name</span><input class="p-inp" id="seam-name" type="text" value="${escapeXML(seam.name)}" onchange="renameSeam(${seam.id}, this.value)"></div>`;
+  h+=`<div class="p-row"><span class="p-lbl">Type</span><select class="p-sel" id="seam-type" onchange="setSeamType(${seam.id}, this.value)">${opt('stitch','Stitch (sewn)')}${opt('fold','Fold (crease)')}${opt('glue','Glue')}</select></div>`;
+  h+=`<div class="p-pair">`
+    +`<div class="p-field"><span class="p-fl">Order</span><input class="p-inp" id="seam-order" type="number" step="1" value="${seam.order==null?'':seam.order}" placeholder="—" title="Assembly step order" onchange="setSeamField(${seam.id},'order',this.value)"></div>`
+    +`<div class="p-field"><span class="p-fl">Allow.</span><input class="p-inp" id="seam-allow" type="number" step="0.1" min="0" value="${seam.allowance==null?'':seam.allowance}" placeholder="${S.defMargin||3}" title="Seam allowance (mm); blank = default margin" onchange="setSeamField(${seam.id},'allowance',this.value)"></div>`
+    +`</div>`;
+  h+=`<div class="p-grp">Members (${seam.members.length})</div>`;
+  if(!seam.members.length) h+=`<p class="p-note" style="opacity:.75">No edges. Pick edges with the Seam tool, then “Add”.</p>`;
+  seam.members.forEach((m,i)=>{
+    const sh=getShape(m.shape), nm=sh?layerName(sh):'(missing)';
+    h+=`<div class="lay-row"><span class="lay-name" title="${nm}">${nm} · edge ${m.edge+1}</span>`
+      +`<button class="lay-arr" title="Find on canvas" onclick="locateSeamMember(${m.shape},${m.edge})">◎</button>`
+      +`<button class="lay-arr" title="Remove from seam" onclick="removeSeamMember(${seam.id},${i})">✕</button></div>`;
+  });
+  if(S.seamSel.length) h+=`<button class="p-btn" style="width:100%;margin-top:6px" onclick="addPicksToSeam(${seam.id})">+ Add ${S.seamSel.length} picked edge${S.seamSel.length!==1?'s':''}</button>`;
+  return h;
+}
+// Keep a seam name unique within the document (append a numeric suffix on collision).
+function uniqueSeamName(name, exceptId){
+  const taken=new Set(S.assembly.seams.filter(s=>s.id!==exceptId).map(s=>s.name));
+  if(!taken.has(name)) return name;
+  let i=2; while(taken.has(name+' '+i)) i++; return name+' '+i;
+}
+function renameSeam(id, name){
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s) return;
+  name=uniqueSeamName((name||'').trim()||('seam '+id), id);
+  if(name===s.name){ renderContent(); return; }   // re-render to revert the input if normalised back
+  pushHist(); s.name=name; renderContent();
+}
+function setSeamType(id, type){
+  if(!['stitch','fold','glue'].includes(type)) return;
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s||s.type===type) return;
+  pushHist(); s.type=type; renderContent();
+}
+function setSeamField(id, field, raw){
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s) return;
+  let val=(raw===''||raw==null)?null:Number(raw);
+  if(val!=null && !isFinite(val)) val=null;
+  if(field==='allowance' && val!=null && val<0) val=0;
+  if(s[field]===val) return;
+  pushHist(); s[field]=val; renderContent();
+}
+// Append the pending edge picks to an existing seam (skipping edges already in a seam).
+function addPicksToSeam(id){
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s||!S.seamSel.length) return;
+  pushHist();
+  for(const p of S.seamSel){
+    if(seamForEdge(p.id,p.edge)) continue;                 // already in some seam
+    if(!s.members.some(m=>m.shape===p.id&&m.edge===p.edge)) s.members.push({shape:p.id, edge:p.edge});
+  }
+  S.seamSel=[]; validateSeams({quiet:true}); renderContent();
+}
+function removeSeamMember(id, idx){
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s||idx<0||idx>=s.members.length) return;
+  pushHist(); s.members.splice(idx,1);
+  validateSeams({quiet:true});   // drops the seam (and clears activeSeam) if it's now empty
+  renderContent();
+}
+// Jump to a member edge: select its shape + edge in the Select tool.
+function locateSeamMember(shapeId, edge){
+  if(!getShape(shapeId)) return;
+  setTool('select');
+  S.selId=shapeId; S.selEdge={id:shapeId, edge};
+  renderContent();
+}
 function toggleSnap(){
   S.snap=!S.snap;
   setMenuCheck('chk-snap',S.snap);
@@ -4812,6 +4971,7 @@ function applyLoadedData(data){
   S.selArtboard=null;
   // Assembly (v15): absent in older files → empty. Normalise, then prune refs to this doc's geometry.
   S.assembly=normAssembly(data.assembly);
+  S.seamSel=[]; S.activeSeam=null;
   validateSeams({quiet:true});
   applyPageDims();
   S.selId=null; S.hist=[]; S.future=[];
@@ -5205,7 +5365,7 @@ function artboardSVGClone(ab){
   clone.querySelector('defs')?.remove();
   clone.querySelector('.grid-bg')?.remove();
   clone.querySelector('#rul')?.remove();
-  clone.querySelectorAll('.artboard-rect,.artboard-label').forEach(el=>el.remove());
+  clone.querySelectorAll('.artboard-rect,.artboard-label,.seam-aid').forEach(el=>el.remove());
   return clone;
 }
 // Build the detached #print-root (one .print-page per artboard) + the matching named-@page CSS.
