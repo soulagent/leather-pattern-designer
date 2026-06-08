@@ -539,6 +539,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
           <div class="help-row"><span class="hk"><kbd class="k">P</kbd></span><span class="hd">Pen / Bezier path</span></div>
           <div class="help-row"><span class="hk"><kbd class="k">T</kbd></span><span class="hd">Text box</span></div>
           <div class="help-row"><span class="hk"><kbd class="k">R</kbd></span><span class="hd">Rotate</span></div>
+          <div class="help-row"><span class="hk"><kbd class="k">S</kbd></span><span class="hd">Seam — mark edges that join (for 3D assembly preview)</span></div>
         </div>
 
         <div class="help-sec">
@@ -683,7 +684,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.7.24</div>
+  <div id="app-title">Leather Pattern Designer v0.8.0</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -712,6 +713,9 @@ body.light .qs-foot{border-top-color:#dde0ea}
          and saved circles still work; only the create-tool button + C shortcut are gone. -->
     <button class="t-btn" id="tb-pen"    data-tip="Pen / Bezier (P)" onclick="setTool('pen')" style="font-size:15px">&#9998;</button>
     <button class="t-btn" id="tb-text"   data-tip="Text (T)" onclick="setTool('text')" style="font-size:16px;font-weight:700">T</button>
+    <div class="t-sep"></div>
+    <!-- assembly -->
+    <button class="t-btn" id="tb-seam"   data-tip="Seam (S)" onclick="setTool('seam')" style="font-size:15px">&#8904;</button>
     <div class="t-sep"></div>
     <button class="t-btn" data-tip="Delete Selected (Del)" onclick="deleteSelected()" style="font-size:14px">&#128465;</button>
     <!-- help: pinned to the bottom of the toolbar -->
@@ -1103,8 +1107,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.7.24';
-const BUILD_TAG = 'indigo-plover-V10';
+const APP_VERSION = 'v0.8.0';
+const BUILD_TAG = 'scarlet-merlin-V11';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -1152,7 +1156,13 @@ function normText(s){
   return s;
 }
 // Backfill flags shared by every shape type (defensive on load; v14 added hidden/locked).
-function normShape(s){ s.hidden=!!s.hidden; s.locked=!!s.locked; return normText(s); }
+function normShape(s){
+  s.hidden=!!s.hidden; s.locked=!!s.locked;
+  // v15: optional per-piece material thickness (mm). Keep only a positive finite number; else leave
+  // it absent so the consumer (3D app) falls back to its global thickness.
+  if(typeof s.thickness!=='number' || !isFinite(s.thickness) || s.thickness<=0) delete s.thickness;
+  return normText(s);
+}
 function makeTextShape(x,y,w,h){
   return normText({type:'text', x, y, w, h, text:'', fontSize:TEXT_DEFAULT_FONT,
     bold:false, italic:false, outline:false, outlineColor:'#000000', outlineWidth:0.4,
@@ -1297,6 +1307,9 @@ const S = {
   selEdge:null,      // {id, edge} of the currently selected edge, or null
   selAnchor:null,    // index of the selected path anchor (for corner/smooth conversion), or null
   hoverEdge:-1,      // edge index under the cursor on the selected shape, or -1
+  // Seam tool (v15): transient, NOT per-document, NOT saved. `seamSel` = pending edge picks being
+  // grouped into a seam (each {id,edge}); `hoverSeam` = {id,edge} under the cursor in the Seam tool.
+  seamSel:[], hoverSeam:null,
   movingEdge:false, edgeDrag:null,  // path edge translate state
   spaceDown:false, panning:false, panStart:null, panPanStart:null,
   cursorMM:{x:0,y:0}, hoverHandle:null, hoverShape:null,
@@ -1313,6 +1326,12 @@ const S = {
   activeArtboard:1,      // id of the active artboard (the print/export + Settings/menu target)
   nextArtboardId:2,
   selArtboard:null,      // artboard selected in the Artboard tool
+  // assembly / seams (save schema v15). Per-document. `seams` = named groups of edges that join
+  // (2+ members = a seam, 1 = an edge finish); `folds` = interior crease lines. Edge refs are
+  // {shape:id, edge:int} — the SAME indexing as per-edge stitching. Consumed read-only by Leather
+  // Studio 3D. See MD files/SEAM-MODEL.md.
+  assembly:{version:1, seams:[], folds:[]},
+  _seamMap:new Map(),    // derived "shapeId:edge" -> seam; rebuilt by validateSeams (NOT saved, NOT a DOC_KEY)
   movingArtboard:null,   // {id, ox, oy} drag state while moving an artboard
   layerCollapsed:{},     // {artboardId|'none': true} — collapsed groups in the Layers panel
   get page(){ return this.artboards.find(a=>a.id===this.activeArtboard) || this.artboards[0]; },
@@ -1363,7 +1382,7 @@ Object.defineProperty(S,'selId',{
 // tool, theme, transient drag/pen state, and view toggles stay global in S. Capture is shallow
 // — inactive tabs are never mutated, so the parked references stay isolated.
 const DOC_KEYS = ['shapes','nextId','hist','future','pan','zoom',
-  'artboards','activeArtboard','nextArtboardId','selArtboard','layerCollapsed',
+  'artboards','activeArtboard','nextArtboardId','selArtboard','layerCollapsed','assembly',
   'fileHandle','nativePath',
   'defMargin','defSpacing','stitchStyle','histLimit','snapMM','snapShapes',
   'rotStep','dimFontSize','labelMM','autoSaveInt'];
@@ -1387,6 +1406,7 @@ function blankDoc(){
   return { shapes:[], nextId:1, hist:[], future:[], pan:{x:30,y:30}, zoom:1,
     artboards:[{id:1, name:'Untitled', preset:pg.preset, orient:pg.orient, w:pg.w, h:pg.h, x:0, y:0}],
     activeArtboard:1, nextArtboardId:2, selArtboard:null, layerCollapsed:{},
+    assembly:{version:1, seams:[], folds:[]},
     fileHandle:null, nativePath:null,
     defMargin:S.defMargin, defSpacing:S.defSpacing, stitchStyle:S.stitchStyle, histLimit:S.histLimit,
     snapMM:S.snapMM, snapShapes:S.snapShapes, rotStep:S.rotStep, dimFontSize:S.dimFontSize,
@@ -1402,6 +1422,8 @@ function syncActiveTabMeta(){ const t=S.tabs[S.activeTab]; if(t) t.title = tabTi
 // Shared refresh after the document slice in S is replaced (switch / new / close / load).
 function afterDocSwap(){
   S.selEdge=null; S.selAnchor=null;
+  if(!S.assembly) S.assembly={version:1, seams:[], folds:[]};
+  validateSeams({quiet:true});   // rebuild the derived edge->seam map for the now-active doc
   applyPageDims(); updatePageMenu(); updatePrintPageSize();
   renderContent(); updateHistStatus(); renderTabs();
   if(S.showRulers) renderRulers();
@@ -1721,8 +1743,8 @@ function shapesInBand(x0,y0,x1,y1){
 // (v0.7.3 — artboards joined the undo stack). JSON.stringify deep-clones and JSON.parse on restore
 // yields fresh objects. The `shapes` arg lets callers snapshot a *modified* shape list (e.g. a
 // pre-edit state) while still capturing the current artboards/active.
-function snapshot(shapes=S.shapes, artboards=S.artboards, active=S.activeArtboard) {
-  return JSON.stringify({shapes, artboards, active});
+function snapshot(shapes=S.shapes, artboards=S.artboards, active=S.activeArtboard, assembly=S.assembly) {
+  return JSON.stringify({shapes, artboards, active, assembly});
 }
 function pushUndo(snap) {
   S.hist.push(snap);
@@ -1740,6 +1762,8 @@ function restoreHist(snap) {
   if (!S.artboards.some(a=>a.id===S.activeArtboard)) S.activeArtboard = S.artboards[0].id;
   if (S.selArtboard!=null && !S.artboards.some(a=>a.id===S.selArtboard)) S.selArtboard = null;
   S.nextArtboardId = Math.max(S.nextArtboardId, Math.max(...S.artboards.map(a=>a.id)) + 1);
+  S.assembly = data.assembly && typeof data.assembly==='object' ? data.assembly : {version:1, seams:[], folds:[]};
+  validateSeams({quiet:true});   // rebuild the derived edge->seam map (restored state was already valid)
   updatePageMenu(); updatePrintPageSize();
 }
 // Retroactively record a shape's pre-edit state — used after move/resize, where the
@@ -2085,12 +2109,43 @@ function edgePathD(sh,e){
   }
   return '';
 }
+// Local-frame midpoint of an edge (rect: corner midpoint; path: cubic at t=0.5). For seam badges.
+function edgeMidpoint(sh,e){
+  if(sh.type==='rect'){
+    const c=[[sh.x,sh.y],[sh.x+sh.w,sh.y],[sh.x+sh.w,sh.y+sh.h],[sh.x,sh.y+sh.h]];
+    const a=c[e], b=c[(e+1)%4]; return {x:(a[0]+b[0])/2, y:(a[1]+b[1])/2};
+  }
+  if(sh.type==='path'){
+    const n=sh.points.length, p0=sh.points[e], p1=sh.points[(e+1)%n], t=0.5, mt=0.5;
+    return {x:mt*mt*mt*p0.x+3*mt*mt*t*p0.cp2x+3*mt*t*t*p1.cp1x+t*t*t*p1.x,
+            y:mt*mt*mt*p0.y+3*mt*mt*t*p0.cp2y+3*mt*t*t*p1.cp1y+t*t*t*p1.y};
+  }
+  return {x:0,y:0};
+}
 function edgeCursor(sh,e){
   if(sh && sh.type==='rect'){
     const N=[[0,-1],[1,0],[0,1],[-1,0]][e]||[0,-1]; // outward normal of edge top/right/bottom/left
     return rotDirCursor(N[0], N[1], sh.rot);
   }
   return 'move';
+}
+// Seam tool: find the edge under the cursor across ALL shapes (top-most first), skipping shapes
+// with no edges (circles → shapeEdgeCount 0 → hitEdge returns -1) and hidden/locked pieces.
+// Returns {id, edge} or null.
+function hitAnyEdge(mx,my){
+  for(let i=S.shapes.length-1;i>=0;i--){
+    const sh=S.shapes[i];
+    if(sh.hidden||sh.locked) continue;
+    const e=hitEdge(sh,mx,my);
+    if(e>=0) return {id:sh.id, edge:e};
+  }
+  return null;
+}
+function seamPickIndex(id,edge){ return S.seamSel.findIndex(p=>p.id===id && p.edge===edge); }
+// Toggle an edge in/out of the pending seam selection.
+function toggleSeamPick(id,edge){
+  const i=seamPickIndex(id,edge);
+  if(i>=0) S.seamSel.splice(i,1); else S.seamSel.push({id,edge});
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2175,6 +2230,41 @@ function setEdgeStitch(sh, e, on){
 }
 // Master toggle — all edges on (undefined) or all off.
 function setShapeStitch(sh, on){ sh.hasStitch=on; sh.stitchEdges=undefined; }
+
+// ── Assembly / seams (schema v15) ──────────────────────────────────────────
+// Prune seam/fold references whose geometry no longer exists (deleted shape, edge index now out of
+// range after a path re-topology, a shape converted to a circle = 0 edges), drop seams left empty,
+// and rebuild the derived "shapeId:edge" -> seam map (S._seamMap) the UI uses. Run on load, undo/redo,
+// tab swap, and after topology edits. `opts.quiet` suppresses the status flash (for non-destructive
+// rebuilds like restore/swap, where nothing should actually be pruned). The editor is the only writer;
+// Leather Studio 3D mirrors this read-only.
+function validateSeams(opts){
+  opts = opts || {};
+  if(!S.assembly || typeof S.assembly!=='object') S.assembly = {version:1, seams:[], folds:[]};
+  const A = S.assembly;
+  const map = new Map();
+  let dropped = 0;
+  const seams = [];
+  for(const seam of (A.seams||[])){
+    const before = (seam.members||[]).length;
+    const kept = (seam.members||[]).filter(m=>{
+      const sh = getShape(m.shape);
+      return sh && m.edge>=0 && m.edge < shapeEdgeCount(sh);   // circle => count 0 => always dropped
+    });
+    dropped += before - kept.length;
+    if(kept.length){
+      seam.members = kept; seams.push(seam);
+      for(const m of kept) map.set(m.shape+':'+m.edge, seam);
+    }   // a fully-emptied seam is simply not re-added
+  }
+  const folds = (A.folds||[]).filter(f=> f && !!getShape(f.shape));
+  dropped += (A.folds||[]).length - folds.length;
+  A.seams = seams; A.folds = folds;
+  S._seamMap = map;
+  if(dropped && !opts.quiet) flashSaved(dropped+' seam reference'+(dropped>1?'s':'')+' dropped (geometry changed)');
+}
+// The seam a given edge belongs to, or null. (Derived map; rebuilt by validateSeams.)
+function seamForEdge(id, edge){ return (S._seamMap && S._seamMap.get(id+':'+edge)) || null; }
 
 function stitchRect(sh) {
   const m=sh.stitchMargin??S.defMargin, sp=sh.stitchSpacing??S.defSpacing;
@@ -2887,6 +2977,25 @@ function renderContent() {
   // Commit the edit overlay, rotated to match the selected shape.
   if(ov){ const ssel=getShape(S.selId); h+=ssel?wrapRot(ssel,ov):ov; }
 
+  // Seam tool: pending edge picks (amber + index badge) and the hovered edge (cyan). Each is wrapped
+  // in ITS OWN shape's transform (picks span multiple shapes, unlike the single-shape edit overlay).
+  if(S.tool==='seam'){
+    if(S.hoverSeam){
+      const s=getShape(S.hoverSeam.id);
+      if(s && seamPickIndex(S.hoverSeam.id, S.hoverSeam.edge)<0)
+        h+=wrapRot(s, `<path d="${edgePathD(s,S.hoverSeam.edge)}" fill="none" stroke="rgba(77,210,255,0.7)" stroke-width="${2/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`);
+    }
+    S.seamSel.forEach((p,i)=>{
+      const s=getShape(p.id); if(!s) return;
+      const d=edgePathD(s,p.edge), mid=edgeMidpoint(s,p.edge), r=5.5/(S.zoom*PX);
+      let g=`<path d="${d}" fill="none" stroke="rgba(245,158,11,0.30)" stroke-width="${9/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+      g+=`<path d="${d}" fill="none" stroke="#f59e0b" stroke-width="${3.4/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+      g+=`<circle cx="${mid.x}" cy="${mid.y}" r="${r}" fill="#f59e0b"/>`;
+      g+=`<text x="${mid.x}" y="${mid.y}" fill="#1a1205" font-size="${7/(S.zoom*PX)}" font-family="system-ui" font-weight="700" text-anchor="middle" dominant-baseline="central">${i+1}</text>`;
+      h+=wrapRot(s, g);
+    });
+  }
+
   // shape-alignment guides (magenta) while moving
   if(S.moving && S.snapGuides && S.snapGuides.length){
     const sw=1/(S.zoom*PX);
@@ -3386,6 +3495,16 @@ function onDown(e) {
     return;
   }
 
+  if(S.tool==='seam'){
+    // Seam tool: click an edge of any shape to toggle it into the pending seam selection. Empty
+    // clicks are ignored (so they don't wipe picks). Grouping into a named seam is the Assembly panel.
+    const hit=hitAnyEdge(mm.x,mm.y);
+    if(hit) toggleSeamPick(hit.id, hit.edge);
+    S.down=false;              // no drag in this tool — let onUp early-return
+    renderContent();
+    return;
+  }
+
   if(S.tool==='select'){
     // handle + edge editing only apply to a SINGLE selected shape
     const single = S.selIds.length<=1;
@@ -3518,6 +3637,15 @@ function onMove(e) {
     S.hoverShape = hitShape(mm.x,mm.y);
     wrap.style.cursor = S.hoverShape!==null ? ROTATE_CURSOR : '';
     if(S.hoverShape!==prevS) renderContent();
+  }
+
+  // ── Hover detection (seam tool, idle) — highlight the edge under the cursor on any shape ─────
+  if(S.tool==='seam' && !S.down && !S.panning){
+    const prev=S.hoverSeam, hit=hitAnyEdge(mm.x,mm.y);
+    S.hoverSeam=hit;
+    wrap.style.cursor = hit ? 'pointer' : '';
+    const changed = (!!prev!==!!hit) || (prev && hit && (prev.id!==hit.id || prev.edge!==hit.edge));
+    if(changed) renderContent();
   }
 
   if(S.tool==='pen'){penMouseMove(mm,sk);return;}
@@ -3874,6 +4002,7 @@ document.addEventListener('keydown',e=>{
     case 'b':case 'B': setTool('rect');   break;
     case 'p':case 'P': setTool('pen');    break;
     case 't':case 'T': setTool('text');   break;
+    case 's': setTool('seam'); break;   // plain 's' = Seam tool (Shift+S stays snap-toggle below)
     case 'Tab':
       if(S.tool==='pen') e.preventDefault(); // smooth/corner mode retired v0.4.8 (click=corner, drag=smooth); just stop focus-jump mid-draw
       break;
@@ -3882,6 +4011,7 @@ document.addEventListener('keydown',e=>{
       break;
     case 'Escape':
       if(S.tool==='pen') cancelPen();
+      else if(S.tool==='seam' && S.seamSel.length){ S.seamSel=[]; renderContent(); } // clear pending picks
       else if(S.selEdge){ S.selEdge=null; renderContent(); } // step out of edge → shape
       else { S.selId=null; renderContent(); }
       break;
@@ -3913,8 +4043,8 @@ function applyToolChrome(t) {
   const btn=document.getElementById('tb-'+t);
   if(btn) btn.classList.add('active');
   // a11y: reflect the active tool to assistive tech
-  ['select','rotate','artboard','rect','pen','text'].forEach(k=>{ const b=document.getElementById('tb-'+k); if(b) b.setAttribute('aria-pressed', String(k===t)); });
-  wrap.className=''; if(t==='select'||t==='artboard') wrap.classList.add('cur-select'); else if(t==='text') wrap.classList.add('cur-text');
+  ['select','rotate','artboard','rect','pen','text','seam'].forEach(k=>{ const b=document.getElementById('tb-'+k); if(b) b.setAttribute('aria-pressed', String(k===t)); });
+  wrap.className=''; if(t==='select'||t==='artboard'||t==='seam') wrap.classList.add('cur-select'); else if(t==='text') wrap.classList.add('cur-text');
   ST.tool.textContent=`Tool: ${t.charAt(0).toUpperCase()+t.slice(1)}`;
   document.getElementById('pen-hints-sec').style.display=t==='pen'?'':'none';
 }
@@ -3927,6 +4057,7 @@ function setTool(t) {
       .then(ok=>{ if(ok){ S.penPts=[]; S.penDown=false; discardPenResume(); setTool(t); } }); return; }
   }
   S.hoverHandle=null; S.hoverShape=null; S.hoverEdge=-1; S.selEdge=null; S.selAnchor=null; S.selArtboard=null; wrap.style.cursor='';
+  S.seamSel=[]; S.hoverSeam=null;   // leaving (or entering) any tool clears pending seam picks
   S.tool=t; S.selId=null; S.preview=null;
   applyToolChrome(t);
   renderArtboards();
@@ -4604,7 +4735,7 @@ function applySpacingPreset(){
 // ═══════════════════════════════════════════════════════
 function buildSaveData(){
   return{
-    version:14,
+    version:15,
     meta:{created:new Date().toISOString(),units:'mm'},
     settings:{defMargin:S.defMargin,defSpacing:S.defSpacing,stitchStyle:S.stitchStyle,histLimit:S.histLimit,snapMM:S.snapMM,snapShapes:S.snapShapes,rotStep:S.rotStep,dimFontSize:S.dimFontSize,labelMM:S.labelMM,autoSaveInt:S.autoSaveInt,page:{...S.page}},
     // v13: full artboard list + which one is active (v1-12 had only settings.page → migrated on load)
@@ -4612,12 +4743,44 @@ function buildSaveData(){
     activeArtboard:S.activeArtboard,
     shapes:S.shapes.map(s=>clone(s)),
     nextId:S.nextId,
+    // v15: seam/assembly metadata (empty in docs authored before seam-tagging). Read-only in the 3D app.
+    assembly:clone(S.assembly||{version:1, seams:[], folds:[]}),
   };
 }
 // Backfill an artboard object's defaults (defensive on load + migration).
 function normArtboard(a,id){
   return {id:a.id??id, name:a.name||'Untitled', preset:a.preset||'A4', orient:a.orient||'portrait',
           w:a.w||210, h:a.h||297, x:a.x||0, y:a.y||0};
+}
+// Normalise the assembly block on load (absent in v1-14 files → empty). Coerces members to valid
+// {shape,edge[,reversed]}, types to the allowed set, and keeps ids/names sane. validateSeams() runs
+// afterwards to prune refs whose geometry doesn't exist in this document.
+function normSeam(s,i){
+  if(!s || typeof s!=='object') return null;
+  const members = Array.isArray(s.members)
+    ? s.members.filter(m=>m && typeof m.shape==='number' && typeof m.edge==='number')
+        .map(m=> m.reversed ? {shape:m.shape, edge:m.edge, reversed:true} : {shape:m.shape, edge:m.edge})
+    : [];
+  return {
+    id: (typeof s.id==='number'? s.id : i+1),
+    name: (s.name!=null ? String(s.name) : 'seam '+(i+1)),
+    type: (['stitch','fold','glue'].includes(s.type) ? s.type : 'stitch'),
+    order: (typeof s.order==='number' ? s.order : null),
+    allowance: (typeof s.allowance==='number' ? s.allowance : null),
+    notes: (s.notes!=null ? String(s.notes) : ''),
+    members,
+  };
+}
+function normAssembly(a){
+  if(!a || typeof a!=='object') return {version:1, seams:[], folds:[]};
+  const seams = Array.isArray(a.seams) ? a.seams.map(normSeam).filter(Boolean) : [];
+  const folds = Array.isArray(a.folds)
+    ? a.folds.filter(f=>f && typeof f.shape==='number' && f.a && f.b)
+        .map((f,i)=>({id:(typeof f.id==='number'?f.id:i+1), shape:f.shape,
+          a:{x:+f.a.x||0,y:+f.a.y||0}, b:{x:+f.b.x||0,y:+f.b.y||0},
+          angle:(typeof f.angle==='number'?f.angle:0), name:(f.name!=null?String(f.name):'fold '+(i+1))}))
+    : [];
+  return {version:a.version||1, seams, folds};
 }
 
 function applyLoadedData(data){
@@ -4647,6 +4810,9 @@ function applyLoadedData(data){
   }
   S.nextArtboardId=Math.max(0,...S.artboards.map(a=>a.id))+1;
   S.selArtboard=null;
+  // Assembly (v15): absent in older files → empty. Normalise, then prune refs to this doc's geometry.
+  S.assembly=normAssembly(data.assembly);
+  validateSeams({quiet:true});
   applyPageDims();
   S.selId=null; S.hist=[]; S.future=[];
   updatePageMenu();

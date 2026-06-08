@@ -246,6 +246,42 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.0 — 2026-06-08
+
+### Seam / assembly model — schema v15 + Seam tool (first cut)
+First implementation steps of the seam/assembly model designed in `MD files/SEAM-MODEL.md` (the
+Phase-2 gate for the Leather Studio 3D companion). **Steps 1–2 of a 6-step plan** — the data
+foundation + edge-selection tool. Grouping picks into named seams (the Assembly panel) is the next
+step, so the Seam tool currently *selects* edges but can't yet *create* a seam.
+
+**Step 1 — schema v15 data foundation.**
+- New per-document **`S.assembly = {version, seams, folds}`** — added to state, `DOC_KEYS` (so it's
+  isolated per tab) and the history **`snapshot()`** (so seam edits will be undoable). Edge refs are
+  `{shape:id, edge:int}` — the *same* indexing as per-edge stitching, so the 3D app (which ported the
+  stitch kernel) reads them identically.
+- **Save bumped v14 → v15.** `buildSaveData()` emits `assembly`; `applyLoadedData()` defaults it empty
+  for any pre-v15 file (full back-compat), normalises via `normAssembly`/`normSeam`, then calls
+  `validateSeams()`. **`validateSeams()`** prunes members whose shape/edge no longer exist (deleted
+  shape, out-of-range path edge, circle = 0 edges), drops emptied seams, prunes dangling folds, rebuilds
+  the derived **`S._seamMap`** (`"id:edge" → seam`), and flashes a warning on prune. Runs on load,
+  undo/redo, and tab-swap. `seamForEdge(id,edge)` helper.
+- Optional per-piece **`sh.thickness`** (mm) — `normShape` keeps only a positive number, else leaves it
+  absent so the 3D app falls back to its global thickness.
+- Smoke: assembly round-trip (multi-member seam + fold + thickness survive save→load; a 3-member seam
+  loses its circle member to validation; a v14 file loads empty), all `version` asserts → 15.
+
+**Step 2 — Seam tool (edge selection across shapes).**
+- New **Seam tool** — toolbar `⋈`, key **S** (Shift+S stays snap-toggle). Every shape's edges become
+  hoverable/clickable via **`hitAnyEdge`** (skips circles = 0 edges, and hidden/locked pieces). Clicking
+  toggles an edge into the pending **`S.seamSel`** list (`toggleSeamPick`/`seamPickIndex`), drawn in
+  amber with numbered badges (`edgeMidpoint`); the hovered edge previews in cyan. Each pick is wrapped in
+  its own shape transform (picks span multiple shapes). **Esc** clears; switching tools clears.
+- `seam` smoke feature (11). Full **409/409**.
+
+Built **scarlet-merlin-V11**. Save schema **v15**.
+
+---
+
 ## v0.7.24 — 2026-06-07
 
 ### Accessibility: clickable `<div>`s promoted to real controls

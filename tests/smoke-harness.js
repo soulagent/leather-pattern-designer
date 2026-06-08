@@ -104,6 +104,14 @@ window.__SMOKE__ = function (spec) {
       S.shapes[0].color = '#27ae60'; // colour must survive too
       Object.assign(S.page, { preset: 'A3', orient: 'landscape', w: 420, h: 297, name: 'Wallet/back' });
       S.stitchStyle = 'french';
+      // v15 assembly: a 3-member seam (rect edge 0 + path edge 0 + a CIRCLE edge that must be pruned
+      // on load since circles have 0 edges), a fold, and a per-piece thickness — all must round-trip.
+      S.shapes[0].thickness = 1.6;
+      S.assembly = { version: 1,
+        seams: [{ id: 1, name: 'spine', type: 'stitch', order: 1, allowance: 4, notes: '',
+          members: [ { shape: S.shapes[0].id, edge: 0 }, { shape: S.shapes[2].id, edge: 0 },
+                     { shape: S.shapes[1].id, edge: 0 } ] }],   // circle member → pruned by validateSeams
+        folds: [{ id: 1, shape: S.shapes[0].id, a: { x: 0, y: 40 }, b: { x: 100, y: 40 }, angle: 90, name: 'main fold' }] };
       const saved = buildSaveData();
       const wire = JSON.parse(JSON.stringify(saved)); // simulate serialize→file→parse
       S.shapes.forEach(normShape); // v14: backfill hidden/locked so load (which normalises) compares equal
@@ -113,7 +121,16 @@ window.__SMOKE__ = function (spec) {
       assert('round-trip → shape count preserved', S.shapes.length === 3, `count=${S.shapes.length}`);
       assert('round-trip → geometry identical', JSON.stringify(S.shapes) === beforeJSON, 'shapes JSON mismatch');
       assert('round-trip → nextId preserved', S.nextId === beforeNextId, `got ${S.nextId}, want ${beforeNextId}`);
-      assert('round-trip → version is 14', saved.version === 14, `version=${saved.version}`);
+      assert('round-trip → version is 15', saved.version === 15, `version=${saved.version}`);
+      // v15 assembly round-trip + validation
+      assert('round-trip → assembly present, 1 seam', S.assembly && S.assembly.seams.length === 1, `seams=${S.assembly && S.assembly.seams.length}`);
+      assert('round-trip → seam fields preserved', S.assembly.seams[0].name === 'spine' && S.assembly.seams[0].type === 'stitch' && S.assembly.seams[0].order === 1 && S.assembly.seams[0].allowance === 4, JSON.stringify(S.assembly.seams[0]));
+      assert('validateSeams → circle member pruned (3→2)', S.assembly.seams[0].members.length === 2, `members=${S.assembly.seams[0].members.length}`);
+      assert('round-trip → fold preserved (angle 90)', S.assembly.folds.length === 1 && S.assembly.folds[0].angle === 90, JSON.stringify(S.assembly.folds));
+      assert('round-trip → per-piece thickness preserved', S.shapes[0].thickness === 1.6, `thickness=${S.shapes[0].thickness}`);
+      assert('seamForEdge → derived map resolves a member', seamForEdge(S.shapes[0].id, 0) === S.assembly.seams[0], 'map miss');
+      assert('seamForEdge → pruned/absent edge = null', seamForEdge(S.shapes[1].id, 0) === null, 'circle edge unexpectedly mapped');
+      assert('v14 file (no assembly) → empty assembly default', normAssembly(undefined).seams.length === 0 && normAssembly(undefined).version === 1);
       assert('round-trip → settings.defSpacing preserved', saved.settings.defSpacing === S.defSpacing, `${saved.settings.defSpacing} vs ${S.defSpacing}`);
       assert('round-trip → settings.stitchStyle preserved', S.stitchStyle === 'french', `stitchStyle=${S.stitchStyle}`);
       assert('round-trip → shape label preserved', S.shapes[2].label === 'Gusset' && S.shapes[2].showLabel === true, `label=${S.shapes[2].label}, show=${S.shapes[2].showLabel}`);
@@ -876,7 +893,7 @@ window.__SMOKE__ = function (spec) {
       // flags ride through save/load (v14) and normShape backfills old files to false
       S.shapes[0].hidden = true; S.shapes[0].locked = true;
       const wire2 = JSON.parse(JSON.stringify(buildSaveData()));
-      assert('hide/lock: save format is v14', wire2.version === 14, `v${wire2.version}`);
+      assert('hide/lock: save format is v15', wire2.version === 15, `v${wire2.version}`);
       applyLoadedData(wire2);
       assert('hide/lock: flags survive round-trip', S.shapes[0].hidden === true && S.shapes[0].locked === true, `${S.shapes[0].hidden},${S.shapes[0].locked}`);
       const nb = normShape({ type: 'rect', x: 0, y: 0, w: 5, h: 5 });
@@ -983,7 +1000,7 @@ window.__SMOKE__ = function (spec) {
       sh.bold = true; sh.italic = true; sh.outline = true; sh.outlineColor = '#ffffff'; sh.outlineWidth = 0.5; sh.color = '#e84393';
       sh.align = 'right'; sh.valign = 'bottom'; sh.fill = false; sh.autoGrow = true;
       const wire = JSON.parse(JSON.stringify(buildSaveData()));
-      assert('text: save version is 14', wire.version === 14, `version=${wire.version}`);
+      assert('text: save version is 15', wire.version === 15, `version=${wire.version}`);
       applyLoadedData(wire);
       const r = S.shapes[S.shapes.length - 1];
       assert('text: content survives round-trip', r.text === 'Hello world from the text box tool', r.text);
@@ -1354,6 +1371,34 @@ window.__SMOKE__ = function (spec) {
       assert('rect stitch guards oversized margin (returns null)', stitchRect(tiny) === null, stitchRect(tiny));
     },
 
+    // ── Seam tool (v15): multi-edge selection across shapes ──
+    seam() {
+      reset();
+      addShape({ type: 'rect', x: 0, y: 0, w: 100, h: 80 });   // id → 4 edges
+      addShape({ type: 'circle', cx: 150, cy: 40, r: 20 });    // 0 edges (not pickable)
+      const rectId = S.shapes[0].id, circId = S.shapes[1].id;
+      setTool('seam');
+      assert('seam: tool engaged', S.tool === 'seam');
+      assert('seam: setTool cleared picks', S.seamSel.length === 0);
+      const hit = hitAnyEdge(50, 0);   // on the rect's top edge (edge 0)
+      assert('seam: hitAnyEdge finds the rect top edge', hit && hit.id === rectId && hit.edge === 0, JSON.stringify(hit));
+      assert('seam: circle has no pickable edge', hitAnyEdge(170, 40) === null);
+      toggleSeamPick(rectId, 0);
+      toggleSeamPick(rectId, 2);
+      assert('seam: two picks added', S.seamSel.length === 2, `n=${S.seamSel.length}`);
+      assert('seam: seamPickIndex locates a pick', seamPickIndex(rectId, 2) === 1, `idx=${seamPickIndex(rectId, 2)}`);
+      toggleSeamPick(rectId, 0);   // toggle off
+      assert('seam: toggle removes a pick', S.seamSel.length === 1 && seamPickIndex(rectId, 0) < 0);
+      S.shapes[0].hidden = true;
+      assert('seam: hidden shape edge not pickable', hitAnyEdge(50, 0) === null);
+      S.shapes[0].hidden = false; S.shapes[0].locked = true;
+      assert('seam: locked shape edge not pickable', hitAnyEdge(50, 0) === null);
+      S.shapes[0].locked = false;
+      setTool('select');
+      assert('seam: leaving the tool clears picks', S.seamSel.length === 0);
+      assert('seam: circle id unused (sanity)', typeof circId === 'number');
+    },
+
     // ── zoom-fit bounding box correctness ──
     bbox() {
       buildScene();
@@ -1414,7 +1459,7 @@ window.__SMOKE__ = function (spec) {
 
   // Tier → ordered feature list. quick = fast logic; full = everything.
   const ORDER = ['core', 'history', 'saveload', 'page', 'color', 'snap',
-    'stitch-rect', 'peredge', 'stitch-circle', 'stitch-path', 'stitch-convert', 'stitch-acute', 'stitch-radii', 'anchor-type', 'pen-grid', 'pen-anchor', 'pen-close', 'pen-resume', 'path-handles', 'label-fit', 'multiselect', 'duplicate', 'stitch-inputs', 'layers', 'layer-groups', 'text', 'home', 'help', 'quickstart', 'artboards', 'tabs', 'rotate', 'stitch-guard', 'bbox', 'a11y'];
+    'stitch-rect', 'peredge', 'stitch-circle', 'stitch-path', 'stitch-convert', 'stitch-acute', 'stitch-radii', 'anchor-type', 'pen-grid', 'pen-anchor', 'pen-close', 'pen-resume', 'path-handles', 'label-fit', 'multiselect', 'duplicate', 'stitch-inputs', 'layers', 'layer-groups', 'text', 'home', 'help', 'quickstart', 'artboards', 'tabs', 'rotate', 'stitch-guard', 'seam', 'bbox', 'a11y'];
   const TIERS = { quick: ['core', 'history'], full: ORDER };
 
   // Resolve the spec into a list of feature names.
