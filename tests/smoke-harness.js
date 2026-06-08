@@ -1492,6 +1492,14 @@ window.__SMOKE__ = function (spec) {
       updatePropsPanel();
       assert('seam: free edge hides membership', document.getElementById('seam-membership').style.display === 'none');
 
+      // U6 viz — partial-seam sub-span band geometry (edgePointAt / edgeBandD).
+      // Rect edge 0 is the top: a=(0,0) → b=(100,0). Interior offset = (-dy,dx) = (0,+1) (downward).
+      assertNear('band: edgePointAt rect mid x', edgePointAt(S.shapes[0], 0, 0.5).x, 50, 0.001);
+      assertNear('band: edgePointAt rect mid y', edgePointAt(S.shapes[0], 0, 0.5).y, 0, 0.001);
+      assert('band: edgeBandD spans t0..t1, offset interior',
+        edgeBandD(S.shapes[0], 0, 0.25, 0.75, 10) === 'M25,10 L75,10',
+        edgeBandD(S.shapes[0], 0, 0.25, 0.75, 10));
+
       // ── Folds (v15): crease authoring via the Seam tool's fold sub-mode ──
       setTool('seam'); setFoldMode(true);
       assert('fold: fold mode engaged', S.foldMode === true);
@@ -1609,11 +1617,46 @@ window.__SMOKE__ = function (spec) {
       renderTabs();
       assert('a11y: tabs are buttons', /aria-label="Switch to/.test(document.getElementById('tabbar').innerHTML), 'tab missing a11y attrs');
     },
+
+    // ── readability: property-panel field labels must fully fit (no clipping) ──
+    // Regression guard for the seam-editor labels that were truncated to
+    // "Ord"/"Allo"/"Anc"/"Star" because they reused the 13px .p-fl class.
+    // A flex-item label whose text overflows its box has scrollWidth > clientWidth.
+    readability() {
+      reset();
+      addShape({ type: 'rect', x: 0, y: 0, w: 100, h: 80 });
+      const rectId = S.shapes[0].id;
+      // Build a 2-member PARTIAL seam so the editor shows every multi-char label
+      // (Order, Allow., Join, Anchor, and per-member Start %/End %).
+      S.seamSel = [{ id: rectId, edge: 0 }, { id: rectId, edge: 2 }];
+      createSeamFromSelection();
+      const sid = S.assembly.seams[0].id;
+      setSeamFit(sid, 'partial');
+      S.activeSeam = sid;
+      setTool('seam');
+      renderContent();
+      const ed = document.getElementById('seam-editor');
+      const labels = [...ed.querySelectorAll('.p-fl, .p-fl-w')];
+      assert('readability: seam editor renders its field labels', labels.length >= 6, `n=${labels.length}`);
+      // Guard against a false pass if the panel didn't lay out (clientWidth 0 everywhere).
+      assert('readability: labels are laid out (panel visible)', labels.some(el => el.clientWidth > 0), 'all labels have 0 width');
+      const clip = labels.filter(el => el.scrollWidth > el.clientWidth + 1)
+        .map(el => `"${el.textContent}" (${el.clientWidth}<${el.scrollWidth})`);
+      assert('readability: no clipped seam-editor labels', clip.length === 0, clip.join(', '));
+
+      // Same guard on the shape-properties panel (Angle uses the wide label too).
+      addShape({ type: 'rect', x: 0, y: 0, w: 20, h: 20 });
+      S.selId = S.shapes[S.shapes.length - 1].id; setTool('select'); updatePropsPanel();
+      const pp = [...document.getElementById('props').querySelectorAll('.p-fl, .p-fl-w')]
+        .filter(el => el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1)
+        .map(el => `"${el.textContent}"`);
+      assert('readability: no clipped shape-props labels', pp.length === 0, pp.join(', '));
+    },
   };
 
   // Tier → ordered feature list. quick = fast logic; full = everything.
   const ORDER = ['core', 'history', 'saveload', 'page', 'color', 'snap',
-    'stitch-rect', 'peredge', 'stitch-circle', 'stitch-path', 'stitch-convert', 'stitch-acute', 'stitch-radii', 'anchor-type', 'pen-grid', 'pen-anchor', 'pen-close', 'pen-resume', 'path-handles', 'label-fit', 'multiselect', 'duplicate', 'stitch-inputs', 'layers', 'layer-groups', 'text', 'home', 'help', 'quickstart', 'artboards', 'tabs', 'rotate', 'stitch-guard', 'seam', 'bbox', 'a11y'];
+    'stitch-rect', 'peredge', 'stitch-circle', 'stitch-path', 'stitch-convert', 'stitch-acute', 'stitch-radii', 'anchor-type', 'pen-grid', 'pen-anchor', 'pen-close', 'pen-resume', 'path-handles', 'label-fit', 'multiselect', 'duplicate', 'stitch-inputs', 'layers', 'layer-groups', 'text', 'home', 'help', 'quickstart', 'artboards', 'tabs', 'rotate', 'stitch-guard', 'seam', 'bbox', 'a11y', 'readability'];
   const TIERS = { quick: ['core', 'history'], full: ORDER };
 
   // Resolve the spec into a list of feature names.

@@ -1,5 +1,5 @@
 # Leather Pattern Designer — Session Context
-_Last updated: 2026-06-08 · Current version: v0.8.4 · Save format v15 (.lpd; assembly-schema v2 — partial seams)_
+_Last updated: 2026-06-09 · Current version: v0.8.5 · Save format v15 (.lpd; assembly-schema v2 — partial seams)_
 
 ---
 

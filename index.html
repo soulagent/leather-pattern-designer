@@ -113,6 +113,8 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .p-pair{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:5px}
 .p-field{display:flex;align-items:center;gap:5px}
 .p-fl{font-size:11px;color:var(--text-muted);flex-shrink:0;width:13px;text-align:center}
+/* wide field label: auto-width so multi-char labels (Order/Allow./Join/Anchor/Start %) aren't clipped */
+.p-fl-w{font-size:11px;color:var(--text-muted);flex-shrink:0;white-space:nowrap}
 .p-row{display:flex;align-items:center;gap:7px;margin-bottom:5px}
 .p-lbl{font-size:11px;color:var(--text-2);width:52px;flex-shrink:0}
 .p-inp{background:var(--raised);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px;flex:1;min-width:0}
@@ -698,7 +700,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.4</div>
+  <div id="app-title">Leather Pattern Designer v0.8.5</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -841,7 +843,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
 
           <!-- ROTATION (after Size, all shape types) -->
           <div class="p-grp">Rotation</div>
-          <div class="p-field"><span class="p-fl" style="width:auto">Angle</span><input class="p-inp" id="pi-rot" type="number" step="15" onchange="applyProps()"><span style="font-size:11px;color:var(--text-muted)">°</span></div>
+          <div class="p-field"><span class="p-fl-w">Angle</span><input class="p-inp" id="pi-rot" type="number" step="15" onchange="applyProps()"><span style="font-size:11px;color:var(--text-muted)">°</span></div>
 
           <!-- CORNERS (rect only) -->
           <div id="grp-corners">
@@ -1142,8 +1144,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.4';
-const BUILD_TAG = 'saffron-tern-V15';
+const APP_VERSION = 'v0.8.5';
+const BUILD_TAG = 'crimson-tanager-V16';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -2150,18 +2152,37 @@ function edgePathD(sh,e){
   }
   return '';
 }
-// Local-frame midpoint of an edge (rect: corner midpoint; path: cubic at t=0.5). For seam badges.
-function edgeMidpoint(sh,e){
+// Local-frame point at parameter t in [0,1] along an edge (rect: straight lerp; path: cubic).
+function edgePointAt(sh,e,t){
   if(sh.type==='rect'){
     const c=[[sh.x,sh.y],[sh.x+sh.w,sh.y],[sh.x+sh.w,sh.y+sh.h],[sh.x,sh.y+sh.h]];
-    const a=c[e], b=c[(e+1)%4]; return {x:(a[0]+b[0])/2, y:(a[1]+b[1])/2};
+    const a=c[e], b=c[(e+1)%4]; return {x:a[0]+(b[0]-a[0])*t, y:a[1]+(b[1]-a[1])*t};
   }
   if(sh.type==='path'){
-    const n=sh.points.length, p0=sh.points[e], p1=sh.points[(e+1)%n], t=0.5, mt=0.5;
+    const n=sh.points.length, p0=sh.points[e], p1=sh.points[(e+1)%n], mt=1-t;
     return {x:mt*mt*mt*p0.x+3*mt*mt*t*p0.cp2x+3*mt*t*t*p1.cp1x+t*t*t*p1.x,
             y:mt*mt*mt*p0.y+3*mt*mt*t*p0.cp2y+3*mt*t*t*p1.cp1y+t*t*t*p1.y};
   }
   return {x:0,y:0};
+}
+// Local-frame midpoint of an edge (rect: corner midpoint; path: cubic at t=0.5). For seam badges.
+function edgeMidpoint(sh,e){ return edgePointAt(sh,e,0.5); }
+// SVG `d` for the [t0,t1] sub-span of an edge, offset perpendicular by `off` mm toward the
+// shape interior (right-hand side of edge travel — for a CW rect that's inward). Used to draw the
+// bold "joined portion" band beside a partial seam's edge so the % span is visible on the canvas.
+function edgeBandD(sh,e,t0,t1,off){
+  t0=Math.max(0,Math.min(1,t0)); t1=Math.max(0,Math.min(1,t1));
+  if(t1<t0){ const s=t0; t0=t1; t1=s; }
+  const steps = sh.type==='path' ? Math.max(2, Math.ceil((t1-t0)*20)) : 1;
+  const raw=[]; for(let i=0;i<=steps;i++){ raw.push(edgePointAt(sh,e,t0+(t1-t0)*i/steps)); }
+  let d='';
+  for(let i=0;i<raw.length;i++){
+    const a=raw[Math.max(0,i-1)], b=raw[Math.min(raw.length-1,i+1)];
+    let dx=b.x-a.x, dy=b.y-a.y; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+    const x=raw[i].x + (-dy)*off, y=raw[i].y + dx*off;   // perp = (-dy, dx) = interior
+    d += (i? ' L':'M') + x + ',' + y;
+  }
+  return d;
 }
 // Arc length of an edge in mm (rotation-independent → local coords). Rect edge = straight; path edge
 // = sampled cubic. Used for the seam length-mismatch hint.
@@ -3087,6 +3108,19 @@ function renderContent() {
         const d=edgePathD(s,m.edge);
         let g=`<path class="seam-aid" d="${d}" fill="none" stroke="${col}" stroke-opacity="${active?0.95:0.6}" stroke-width="${(active?4.2:2.6)/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
         if(bad.has(mi)) g+=`<path class="seam-aid" d="${d}" fill="none" stroke="#e74c3c" stroke-width="${(active?2:1.6)/(S.zoom*PX)}" stroke-dasharray="${3/(S.zoom*PX)} ${2/(S.zoom*PX)}" vector-effect="non-scaling-stroke"/>`;
+        // Partial seam: draw the joined sub-span as a BOLD band offset to the edge's interior side,
+        // so the % span (panel) is visible on the canvas. An anchor dot marks the end spans align from.
+        if(seam.fit==='partial'){
+          const t0=m.t0==null?0:m.t0, t1=m.t1==null?1:m.t1, off=5.5/(S.zoom*PX);
+          const bd=edgeBandD(s,m.edge,t0,t1,off);
+          g+=`<path class="seam-aid" d="${bd}" fill="none" stroke="${halo}" stroke-opacity="0.85" stroke-width="${8.5/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+          g+=`<path class="seam-aid" d="${bd}" fill="none" stroke="${col}" stroke-width="${5/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+          const at=seam.anchor==='end'?1:0, ap=edgePointAt(s,m.edge,at);
+          const e0=edgePointAt(s,m.edge,Math.max(0,at-0.02)), e1=edgePointAt(s,m.edge,Math.min(1,at+0.02));
+          let mdx=e1.x-e0.x, mdy=e1.y-e0.y; const mL=Math.hypot(mdx,mdy)||1; mdx/=mL; mdy/=mL;
+          const mx=ap.x+(-mdy)*off, my=ap.y+mdx*off;
+          g+=`<circle class="seam-aid" cx="${mx}" cy="${my}" r="${3.4/(S.zoom*PX)}" fill="${col}" stroke="${halo}" stroke-width="${1.4/(S.zoom*PX)}"/>`;
+        }
         if(mi===0){ const mid=edgeMidpoint(s,m.edge);
           g+=`<text class="seam-aid" x="${mid.x}" y="${mid.y-6/(S.zoom*PX)}" fill="${col}" font-size="${11/(S.zoom*PX)}" font-family="system-ui" text-anchor="middle" paint-order="stroke" stroke="${halo}" stroke-width="${2.5/(S.zoom*PX)}" stroke-linejoin="round">${escapeXML(seam.name)}</text>`;
         }
@@ -4513,19 +4547,19 @@ function seamEditorHTML(seam){
   h+=`<div class="p-row"><span class="p-lbl">Name</span><input class="p-inp" id="seam-name" type="text" value="${escapeXML(seam.name)}" onchange="renameSeam(${seam.id}, this.value)"></div>`;
   h+=`<div class="p-row"><span class="p-lbl">Type</span><select class="p-sel" id="seam-type" onchange="setSeamType(${seam.id}, this.value)">${opt('stitch','Stitch (sewn)')}${opt('fold','Fold (crease)')}${opt('glue','Glue')}</select></div>`;
   h+=`<div class="p-pair">`
-    +`<div class="p-field"><span class="p-fl">Order</span><input class="p-inp" id="seam-order" type="number" step="1" value="${seam.order==null?'':seam.order}" placeholder="—" title="Assembly step order" onchange="setSeamField(${seam.id},'order',this.value)"></div>`
-    +`<div class="p-field"><span class="p-fl">Allow.</span><input class="p-inp" id="seam-allow" type="number" step="0.1" min="0" value="${seam.allowance==null?'':seam.allowance}" placeholder="${S.defMargin||3}" title="Seam allowance (mm); blank = default margin" onchange="setSeamField(${seam.id},'allowance',this.value)"></div>`
+    +`<div class="p-field"><span class="p-fl-w">Order</span><input class="p-inp" id="seam-order" type="number" step="1" value="${seam.order==null?'':seam.order}" placeholder="—" title="Assembly step order" onchange="setSeamField(${seam.id},'order',this.value)"></div>`
+    +`<div class="p-field"><span class="p-fl-w">Allow.</span><input class="p-inp" id="seam-allow" type="number" step="0.1" min="0" value="${seam.allowance==null?'':seam.allowance}" placeholder="${S.defMargin||3}" title="Seam allowance (mm); blank = default margin" onchange="setSeamField(${seam.id},'allowance',this.value)"></div>`
     +`</div>`;
   // U6 — Join fit: Full (edges expected equal length) vs Partial (intentional unequal / sub-span
   // join, anchored at one end; the length-mismatch hint is suppressed). Anchor shown only when partial.
   const partial = seam.fit==='partial';
   h+=`<div class="p-pair">`
-    +`<div class="p-field"><span class="p-fl">Join</span><select class="p-sel" id="seam-fit" title="Full = edges match length; Partial = intentional unequal / sub-span join" onchange="setSeamFit(${seam.id}, this.value)"><option value="full"${!partial?' selected':''}>Full</option><option value="partial"${partial?' selected':''}>Partial</option></select></div>`
+    +`<div class="p-field"><span class="p-fl-w">Join</span><select class="p-sel" id="seam-fit" title="Full = edges match length; Partial = intentional unequal / sub-span join" onchange="setSeamFit(${seam.id}, this.value)"><option value="full"${!partial?' selected':''}>Full</option><option value="partial"${partial?' selected':''}>Partial</option></select></div>`
     +(partial
-      ? `<div class="p-field"><span class="p-fl">Anchor</span><select class="p-sel" id="seam-anchor" title="Which end the joined spans line up at" onchange="setSeamAnchor(${seam.id}, this.value)"><option value="start"${seam.anchor!=='end'?' selected':''}>Start</option><option value="end"${seam.anchor==='end'?' selected':''}>End</option></select></div>`
+      ? `<div class="p-field"><span class="p-fl-w">Anchor</span><select class="p-sel" id="seam-anchor" title="Which end the joined spans line up at" onchange="setSeamAnchor(${seam.id}, this.value)"><option value="start"${seam.anchor!=='end'?' selected':''}>Start</option><option value="end"${seam.anchor==='end'?' selected':''}>End</option></select></div>`
       : `<div class="p-field"></div>`)
     +`</div>`;
-  if(partial) h+=`<p class="p-note" style="opacity:.7;margin-top:0">Each edge's <b>span</b> (% along the edge) sets how much of it joins. Mated spans line up from the anchor end.</p>`;
+  if(partial) h+=`<p class="p-note" style="opacity:.7;margin-top:0">Each edge's <b>span</b> (% along the edge) sets how much of it joins — shown as a <b>bold band</b> on the canvas, with a dot at the anchor end. Mated spans line up from the anchor.</p>`;
   const issues=seamLengthIssues(seam), bad=new Set(issues.map(x=>x.i));
   h+=`<div class="p-grp">Members (${seam.members.length})</div>`;
   if(!seam.members.length) h+=`<p class="p-note" style="opacity:.75">No edges. Pick edges with the Seam tool, then “Add”.</p>`;
@@ -4537,8 +4571,8 @@ function seamEditorHTML(seam){
     if(partial){
       const t0=Math.round((m.t0??0)*100), t1=Math.round((m.t1??1)*100);
       h+=`<div class="p-pair" style="margin:-2px 0 6px 4px">`
-        +`<div class="p-field"><span class="p-fl">Start %</span><input class="p-inp" type="number" min="0" max="100" step="1" value="${t0}" title="Span start (% along edge ${m.edge+1})" onchange="setMemberSpan(${seam.id},${i},'t0',this.value)"></div>`
-        +`<div class="p-field"><span class="p-fl">End %</span><input class="p-inp" type="number" min="0" max="100" step="1" value="${t1}" title="Span end (% along edge ${m.edge+1})" onchange="setMemberSpan(${seam.id},${i},'t1',this.value)"></div>`
+        +`<div class="p-field"><span class="p-fl-w">Start %</span><input class="p-inp" type="number" min="0" max="100" step="1" value="${t0}" title="Span start (% along edge ${m.edge+1})" onchange="setMemberSpan(${seam.id},${i},'t0',this.value)"></div>`
+        +`<div class="p-field"><span class="p-fl-w">End %</span><input class="p-inp" type="number" min="0" max="100" step="1" value="${t1}" title="Span end (% along edge ${m.edge+1})" onchange="setMemberSpan(${seam.id},${i},'t1',this.value)"></div>`
         +`</div>`;
     }
   });

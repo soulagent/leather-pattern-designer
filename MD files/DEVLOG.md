@@ -263,6 +263,36 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.5 — 2026-06-09
+
+### Card-holder feedback polish: readable seam labels + partial-seam canvas viz
+
+Three user-flagged issues on the just-shipped partial-seam work. Two are LPD (below); the third is
+the 3D stitch-slant fix, shipped as Leather Studio 3D v0.0.8.
+
+- **Unreadable property labels (fix).** The seam editor reused the `.p-fl` field-label class, which
+  is hard-set to `width:13px` (it was built for single-char labels like X/Y/W/H). Multi-char labels
+  were clipped — "Order"→"Ord", "Allow."→"Allo", "Anchor"→"Anc", "Start %"→"Star". Added a
+  `.p-fl-w` (auto-width, `white-space:nowrap`) class and applied it to the seam-editor labels (Order,
+  Allow., Join, Anchor, Start %, End %); the shape-props **Angle** label switched to it too (it had
+  been working around the clip with an inline `width:auto`).
+- **Readability smoke (new).** New `readability` smoke feature renders a partial seam + a selected
+  shape and asserts no `.p-fl`/`.p-fl-w` field label is clipped (a flex-item label whose text
+  overflows has `scrollWidth > clientWidth`); guarded by a "labels are laid out" check so it can't
+  false-pass if the panel isn't visible. Verified it has teeth (reverting one label to `.p-fl` fails
+  it: `"Order" (13<28)`).
+- **Partial-seam join is now visible on the canvas.** A partial seam previously showed only Start %/
+  End % numbers in the panel. The seam overlay now draws the `[t0,t1]` joined sub-span of each member
+  edge as a **bold band** (halo + seam-colour, ~8.5/5 px) offset to the edge's interior side, with a
+  **dot at the anchor end** (the end mated spans line up from). New helpers `edgePointAt(sh,e,t)` +
+  `edgeBandD(sh,e,t0,t1,off)` (interior-offset polyline; rect = straight, path = sampled cubic);
+  `edgeMidpoint` now delegates to `edgePointAt`. Screen-only (`seam-aid`, stripped from print/export).
+
+`seam` smoke gains `edgePointAt`/`edgeBandD` geometry asserts; new `readability` feature (4). Full
+**475/475**, build smoke **64/64**.
+
+---
+
 ## v0.8.4 — 2026-06-08
 
 ### Partial / unequal-length seams (U6) — assembly-schema v2
