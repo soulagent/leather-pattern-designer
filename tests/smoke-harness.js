@@ -107,9 +107,11 @@ window.__SMOKE__ = function (spec) {
       // v15 assembly: a 3-member seam (rect edge 0 + path edge 0 + a CIRCLE edge that must be pruned
       // on load since circles have 0 edges), a fold, and a per-piece thickness — all must round-trip.
       S.shapes[0].thickness = 1.6;
-      S.assembly = { version: 1,
+      // U6: make it a PARTIAL join with an anchor + a member sub-span, so the v2 fields round-trip.
+      S.assembly = { version: 2,
         seams: [{ id: 1, name: 'spine', type: 'stitch', order: 1, allowance: 4, notes: '',
-          members: [ { shape: S.shapes[0].id, edge: 0 }, { shape: S.shapes[2].id, edge: 0 },
+          fit: 'partial', anchor: 'end',
+          members: [ { shape: S.shapes[0].id, edge: 0, t0: 0.1, t1: 0.6 }, { shape: S.shapes[2].id, edge: 0 },
                      { shape: S.shapes[1].id, edge: 0 } ] }],   // circle member → pruned by validateSeams
         folds: [{ id: 1, shape: S.shapes[0].id, a: { x: 0, y: 40 }, b: { x: 100, y: 40 }, angle: 90, name: 'main fold' }] };
       const saved = buildSaveData();
@@ -126,11 +128,15 @@ window.__SMOKE__ = function (spec) {
       assert('round-trip → assembly present, 1 seam', S.assembly && S.assembly.seams.length === 1, `seams=${S.assembly && S.assembly.seams.length}`);
       assert('round-trip → seam fields preserved', S.assembly.seams[0].name === 'spine' && S.assembly.seams[0].type === 'stitch' && S.assembly.seams[0].order === 1 && S.assembly.seams[0].allowance === 4, JSON.stringify(S.assembly.seams[0]));
       assert('validateSeams → circle member pruned (3→2)', S.assembly.seams[0].members.length === 2, `members=${S.assembly.seams[0].members.length}`);
+      // U6: partial-join fields survive save→load
+      assert('round-trip → fit/anchor preserved', S.assembly.seams[0].fit === 'partial' && S.assembly.seams[0].anchor === 'end', JSON.stringify(S.assembly.seams[0]));
+      assert('round-trip → member sub-span preserved', S.assembly.seams[0].members[0].t0 === 0.1 && S.assembly.seams[0].members[0].t1 === 0.6, JSON.stringify(S.assembly.seams[0].members[0]));
+      assert('partial seam → length hint suppressed', seamLengthIssues(S.assembly.seams[0]).length === 0);
       assert('round-trip → fold preserved (angle 90)', S.assembly.folds.length === 1 && S.assembly.folds[0].angle === 90, JSON.stringify(S.assembly.folds));
       assert('round-trip → per-piece thickness preserved', S.shapes[0].thickness === 1.6, `thickness=${S.shapes[0].thickness}`);
       assert('seamForEdge → derived map resolves a member', seamForEdge(S.shapes[0].id, 0) === S.assembly.seams[0], 'map miss');
       assert('seamForEdge → pruned/absent edge = null', seamForEdge(S.shapes[1].id, 0) === null, 'circle edge unexpectedly mapped');
-      assert('v14 file (no assembly) → empty assembly default', normAssembly(undefined).seams.length === 0 && normAssembly(undefined).version === 1);
+      assert('v14 file (no assembly) → empty assembly default', normAssembly(undefined).seams.length === 0 && normAssembly(undefined).version === 2);
       assert('round-trip → settings.defSpacing preserved', saved.settings.defSpacing === S.defSpacing, `${saved.settings.defSpacing} vs ${S.defSpacing}`);
       assert('round-trip → settings.stitchStyle preserved', S.stitchStyle === 'french', `stitchStyle=${S.stitchStyle}`);
       assert('round-trip → shape label preserved', S.shapes[2].label === 'Gusset' && S.shapes[2].showLabel === true, `label=${S.shapes[2].label}, show=${S.shapes[2].showLabel}`);

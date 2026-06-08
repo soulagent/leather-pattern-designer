@@ -698,7 +698,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.3</div>
+  <div id="app-title">Leather Pattern Designer v0.8.4</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -1142,8 +1142,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.3';
-const BUILD_TAG = 'russet-marten-V14';
+const APP_VERSION = 'v0.8.4';
+const BUILD_TAG = 'saffron-tern-V15';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -1371,7 +1371,7 @@ const S = {
   // (2+ members = a seam, 1 = an edge finish); `folds` = interior crease lines. Edge refs are
   // {shape:id, edge:int} — the SAME indexing as per-edge stitching. Consumed read-only by Leather
   // Studio 3D. See MD files/SEAM-MODEL.md.
-  assembly:{version:1, seams:[], folds:[]},
+  assembly:{version:2, seams:[], folds:[]},
   _seamMap:new Map(),    // derived "shapeId:edge" -> seam; rebuilt by validateSeams (NOT saved, NOT a DOC_KEY)
   movingArtboard:null,   // {id, ox, oy} drag state while moving an artboard
   layerCollapsed:{},     // {artboardId|'none': true} — collapsed groups in the Layers panel
@@ -1447,7 +1447,7 @@ function blankDoc(){
   return { shapes:[], nextId:1, hist:[], future:[], pan:{x:30,y:30}, zoom:1,
     artboards:[{id:1, name:'Untitled', preset:pg.preset, orient:pg.orient, w:pg.w, h:pg.h, x:0, y:0}],
     activeArtboard:1, nextArtboardId:2, selArtboard:null, layerCollapsed:{},
-    assembly:{version:1, seams:[], folds:[]},
+    assembly:{version:2, seams:[], folds:[]},
     fileHandle:null, nativePath:null,
     defMargin:S.defMargin, defSpacing:S.defSpacing, stitchStyle:S.stitchStyle, histLimit:S.histLimit,
     snapMM:S.snapMM, snapShapes:S.snapShapes, rotStep:S.rotStep, dimFontSize:S.dimFontSize,
@@ -1463,7 +1463,7 @@ function syncActiveTabMeta(){ const t=S.tabs[S.activeTab]; if(t) t.title = tabTi
 // Shared refresh after the document slice in S is replaced (switch / new / close / load).
 function afterDocSwap(){
   S.selEdge=null; S.selAnchor=null; S.seamSel=[]; S.activeSeam=null; S.activeFold=null; S.foldDraft=null;
-  if(!S.assembly) S.assembly={version:1, seams:[], folds:[]};
+  if(!S.assembly) S.assembly={version:2, seams:[], folds:[]};
   validateSeams({quiet:true});   // rebuild the derived edge->seam map for the now-active doc
   applyPageDims(); updatePageMenu(); updatePrintPageSize();
   renderContent(); updateHistStatus(); renderTabs();
@@ -1803,7 +1803,7 @@ function restoreHist(snap) {
   if (!S.artboards.some(a=>a.id===S.activeArtboard)) S.activeArtboard = S.artboards[0].id;
   if (S.selArtboard!=null && !S.artboards.some(a=>a.id===S.selArtboard)) S.selArtboard = null;
   S.nextArtboardId = Math.max(S.nextArtboardId, Math.max(...S.artboards.map(a=>a.id)) + 1);
-  S.assembly = data.assembly && typeof data.assembly==='object' ? data.assembly : {version:1, seams:[], folds:[]};
+  S.assembly = data.assembly && typeof data.assembly==='object' ? data.assembly : {version:2, seams:[], folds:[]};
   validateSeams({quiet:true});   // rebuild the derived edge->seam map (restored state was already valid)
   updatePageMenu(); updatePrintPageSize();
 }
@@ -2335,7 +2335,7 @@ function setShapeStitch(sh, on){ sh.hasStitch=on; sh.stitchEdges=undefined; }
 // Leather Studio 3D mirrors this read-only.
 function validateSeams(opts){
   opts = opts || {};
-  if(!S.assembly || typeof S.assembly!=='object') S.assembly = {version:1, seams:[], folds:[]};
+  if(!S.assembly || typeof S.assembly!=='object') S.assembly = {version:2, seams:[], folds:[]};
   const A = S.assembly;
   const map = new Map();
   let dropped = 0;
@@ -4444,6 +4444,7 @@ const SEAM_LEN_TOL=1.5; // mm — flag a join whose mated edges differ in length
 // more than SEAM_LEN_TOL shorter than the longest member → can't sew/match cleanly. (Gap/orphan
 // detection needs the pieces positioned, so that lives in the 3D app, not here.)
 function seamLengthIssues(seam){
+  if(seam.fit==='partial') return [];   // U6: intentional unequal join — mismatch is expected, don't flag
   const ms=seam.members.map((m,i)=>{ const sh=getShape(m.shape); return sh?{i, sh, edge:m.edge, len:edgeLength(sh,m.edge)}:null; }).filter(Boolean);
   if(ms.length<2) return [];
   const maxLen=Math.max(...ms.map(x=>x.len));
@@ -4515,6 +4516,16 @@ function seamEditorHTML(seam){
     +`<div class="p-field"><span class="p-fl">Order</span><input class="p-inp" id="seam-order" type="number" step="1" value="${seam.order==null?'':seam.order}" placeholder="—" title="Assembly step order" onchange="setSeamField(${seam.id},'order',this.value)"></div>`
     +`<div class="p-field"><span class="p-fl">Allow.</span><input class="p-inp" id="seam-allow" type="number" step="0.1" min="0" value="${seam.allowance==null?'':seam.allowance}" placeholder="${S.defMargin||3}" title="Seam allowance (mm); blank = default margin" onchange="setSeamField(${seam.id},'allowance',this.value)"></div>`
     +`</div>`;
+  // U6 — Join fit: Full (edges expected equal length) vs Partial (intentional unequal / sub-span
+  // join, anchored at one end; the length-mismatch hint is suppressed). Anchor shown only when partial.
+  const partial = seam.fit==='partial';
+  h+=`<div class="p-pair">`
+    +`<div class="p-field"><span class="p-fl">Join</span><select class="p-sel" id="seam-fit" title="Full = edges match length; Partial = intentional unequal / sub-span join" onchange="setSeamFit(${seam.id}, this.value)"><option value="full"${!partial?' selected':''}>Full</option><option value="partial"${partial?' selected':''}>Partial</option></select></div>`
+    +(partial
+      ? `<div class="p-field"><span class="p-fl">Anchor</span><select class="p-sel" id="seam-anchor" title="Which end the joined spans line up at" onchange="setSeamAnchor(${seam.id}, this.value)"><option value="start"${seam.anchor!=='end'?' selected':''}>Start</option><option value="end"${seam.anchor==='end'?' selected':''}>End</option></select></div>`
+      : `<div class="p-field"></div>`)
+    +`</div>`;
+  if(partial) h+=`<p class="p-note" style="opacity:.7;margin-top:0">Each edge's <b>span</b> (% along the edge) sets how much of it joins. Mated spans line up from the anchor end.</p>`;
   const issues=seamLengthIssues(seam), bad=new Set(issues.map(x=>x.i));
   h+=`<div class="p-grp">Members (${seam.members.length})</div>`;
   if(!seam.members.length) h+=`<p class="p-note" style="opacity:.75">No edges. Pick edges with the Seam tool, then “Add”.</p>`;
@@ -4523,6 +4534,13 @@ function seamEditorHTML(seam){
     h+=`<div class="lay-row"><span class="lay-name"${w?' style="color:#e74c3c"':''} title="${nm}">${w?'⚠ ':''}${nm} · edge ${m.edge+1}</span>`
       +`<button class="lay-arr" title="Find on canvas" onclick="locateSeamMember(${m.shape},${m.edge})">◎</button>`
       +`<button class="lay-arr" title="Remove from seam" onclick="removeSeamMember(${seam.id},${i})">✕</button></div>`;
+    if(partial){
+      const t0=Math.round((m.t0??0)*100), t1=Math.round((m.t1??1)*100);
+      h+=`<div class="p-pair" style="margin:-2px 0 6px 4px">`
+        +`<div class="p-field"><span class="p-fl">Start %</span><input class="p-inp" type="number" min="0" max="100" step="1" value="${t0}" title="Span start (% along edge ${m.edge+1})" onchange="setMemberSpan(${seam.id},${i},'t0',this.value)"></div>`
+        +`<div class="p-field"><span class="p-fl">End %</span><input class="p-inp" type="number" min="0" max="100" step="1" value="${t1}" title="Span end (% along edge ${m.edge+1})" onchange="setMemberSpan(${seam.id},${i},'t1',this.value)"></div>`
+        +`</div>`;
+    }
   });
   if(issues.length){
     h+=`<div class="seam-warn">⚠ Length mismatch — these edges won't sew evenly:`;
@@ -4556,6 +4574,37 @@ function setSeamField(id, field, raw){
   if(field==='allowance' && val!=null && val<0) val=0;
   if(s[field]===val) return;
   pushHist(); s[field]=val; renderContent();
+}
+// U6 — partial-join controls.
+function setSeamFit(id, fit){
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s) return;
+  fit = fit==='partial' ? 'partial' : 'full';
+  const cur = s.fit==='partial' ? 'partial' : 'full';
+  if(cur===fit) return;
+  pushHist();
+  if(fit==='partial'){ s.fit='partial'; if(s.anchor!=='end') s.anchor='start'; }
+  else { delete s.fit; delete s.anchor; for(const m of s.members){ delete m.t0; delete m.t1; } }  // full → clear spans
+  renderContent();
+}
+function setSeamAnchor(id, anchor){
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s || s.fit!=='partial') return;
+  anchor = anchor==='end' ? 'end' : 'start';
+  if(s.anchor===anchor) return;
+  pushHist(); s.anchor=anchor; renderContent();
+}
+// Set one end of a member's sub-span (which='t0'|'t1', raw is a 0..100 percent). Stored only when
+// it's a real partial span; a full 0..100 clears the fields (back to whole-edge).
+function setMemberSpan(id, idx, which, raw){
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s) return;
+  const m=s.members[idx]; if(!m) return;
+  let v=Number(raw); if(!isFinite(v)) return;
+  v=Math.max(0,Math.min(100,v))/100;
+  let t0=m.t0??0, t1=m.t1??1;
+  if(which==='t0') t0=v; else t1=v;
+  if(t0>t1){ const tmp=t0; t0=t1; t1=tmp; }
+  pushHist();
+  if(t0>1e-4 || t1<1-1e-4){ m.t0=t0; m.t1=t1; } else { delete m.t0; delete m.t1; }
+  renderContent();
 }
 // Append the pending edge picks to an existing seam (skipping edges already in a seam).
 function addPicksToSeam(id){
@@ -5125,7 +5174,7 @@ function buildSaveData(){
     shapes:S.shapes.map(s=>clone(s)),
     nextId:S.nextId,
     // v15: seam/assembly metadata (empty in docs authored before seam-tagging). Read-only in the 3D app.
-    assembly:clone(S.assembly||{version:1, seams:[], folds:[]}),
+    assembly:clone(S.assembly||{version:2, seams:[], folds:[]}),
   };
 }
 // Backfill an artboard object's defaults (defensive on load + migration).
@@ -5136,13 +5185,23 @@ function normArtboard(a,id){
 // Normalise the assembly block on load (absent in v1-14 files → empty). Coerces members to valid
 // {shape,edge[,reversed]}, types to the allowed set, and keeps ids/names sane. validateSeams() runs
 // afterwards to prune refs whose geometry doesn't exist in this document.
+// Normalise one seam member. v15 carried only {shape,edge[,reversed]}; assembly-schema v2 (U6)
+// adds an optional sub-span t0/t1 (0..1 along the edge by arc length) for PARTIAL joins — stored
+// only when it's a real sub-span (whole-edge 0..1 stays absent for back-compat + clean files).
+function normMember(m){
+  if(!m || typeof m.shape!=='number' || typeof m.edge!=='number') return null;
+  const out = {shape:m.shape, edge:m.edge};
+  if(m.reversed) out.reversed = true;
+  let t0 = (typeof m.t0==='number') ? m.t0 : 0, t1 = (typeof m.t1==='number') ? m.t1 : 1;
+  t0 = Math.max(0,Math.min(1,t0)); t1 = Math.max(0,Math.min(1,t1));
+  if(t0>t1){ const tmp=t0; t0=t1; t1=tmp; }
+  if(t0>1e-4 || t1<1-1e-4){ out.t0=t0; out.t1=t1; }   // only persist a real partial span
+  return out;
+}
 function normSeam(s,i){
   if(!s || typeof s!=='object') return null;
-  const members = Array.isArray(s.members)
-    ? s.members.filter(m=>m && typeof m.shape==='number' && typeof m.edge==='number')
-        .map(m=> m.reversed ? {shape:m.shape, edge:m.edge, reversed:true} : {shape:m.shape, edge:m.edge})
-    : [];
-  return {
+  const members = Array.isArray(s.members) ? s.members.map(normMember).filter(Boolean) : [];
+  const out = {
     id: (typeof s.id==='number'? s.id : i+1),
     name: (s.name!=null ? String(s.name) : 'seam '+(i+1)),
     type: (['stitch','fold','glue'].includes(s.type) ? s.type : 'stitch'),
@@ -5151,9 +5210,13 @@ function normSeam(s,i){
     notes: (s.notes!=null ? String(s.notes) : ''),
     members,
   };
+  // v2 (U6): an intentional PARTIAL/unequal join — anchor the shorter span instead of
+  // stretching, and the length-mismatch hint is suppressed. Absent = 'full' (the v1 default).
+  if(s.fit==='partial'){ out.fit='partial'; out.anchor = (s.anchor==='end' ? 'end' : 'start'); }
+  return out;
 }
 function normAssembly(a){
-  if(!a || typeof a!=='object') return {version:1, seams:[], folds:[]};
+  if(!a || typeof a!=='object') return {version:2, seams:[], folds:[]};
   const seams = Array.isArray(a.seams) ? a.seams.map(normSeam).filter(Boolean) : [];
   const folds = Array.isArray(a.folds)
     ? a.folds.filter(f=>f && typeof f.shape==='number' && f.a && f.b)
@@ -5161,7 +5224,7 @@ function normAssembly(a){
           a:{x:+f.a.x||0,y:+f.a.y||0}, b:{x:+f.b.x||0,y:+f.b.y||0},
           angle:(typeof f.angle==='number'?f.angle:0), name:(f.name!=null?String(f.name):'fold '+(i+1))}))
     : [];
-  return {version:a.version||1, seams, folds};
+  return {version:a.version||2, seams, folds};
 }
 
 function applyLoadedData(data){

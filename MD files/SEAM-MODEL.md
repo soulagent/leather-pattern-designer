@@ -120,7 +120,7 @@ Top-level additions to the existing save object (everything else unchanged from 
 
   // NEW — all assembly metadata. Absent in v1–14 files → defaults to empty (back-compat).
   "assembly": {
-    "version": 1,                     // internal assembly-schema version (independent of file version)
+    "version": 2,                     // internal assembly-schema version (independent of file version). v2 = partial seams (U6)
     "seams": [
       {
         "id": 1,                      // stable within the document
@@ -129,8 +129,10 @@ Top-level additions to the existing save object (everything else unchanged from 
         "order": 1,                   // optional assembly step ordering (for instructions); null = unordered
         "allowance": 4,               // optional seam allowance / margin in mm (defaults to defMargin)
         "notes": "",                 // optional freeform note surfaced in instructions
+        "fit": "partial",            // v2/U6 OPTIONAL: "partial" = intentional unequal/sub-span join (no length-mismatch flag). Absent = "full".
+        "anchor": "start",           // v2/U6 OPTIONAL (only when fit=partial): which end the spans line up at — "start" | "end". Default "start".
         "members": [                  // 2+ edges (N-way allowed). Each is an edge reference.
-          { "shape": 7,  "edge": 1 },
+          { "shape": 7,  "edge": 1, "t0": 0.0, "t1": 0.45 },  // v2/U6 OPTIONAL sub-span: fractions of arc length (default whole edge 0..1)
           { "shape": 9,  "edge": 3 },
           { "shape": 11, "edge": 3, "reversed": true }   // optional alignment override (Q2)
         ]
@@ -392,6 +394,36 @@ the Seam tool + that seam. Minimal; keeps Select uncluttered.
 
 _This is UI design only — no code this pass. The 3D consumption design (#10) is done:
 `Leather Studio 3D/MD files/SEAM-CONSUMPTION.md`._
+
+---
+
+## 12. Assembly-schema v2 — partial / unequal-length seams (U6, 2026-06-08)
+
+The v1 model assumed every member of a join was the **whole edge** and that mated edges were
+**equal length** (a length difference was a Tier-1 *problem*). Real goods break this: a T-pocket
+joins only a **portion** of its side; a front pocket is **much shorter** than the back it sews to.
+v2 adds two optional, back-compatible pieces:
+
+1. **Member sub-span** — `t0`,`t1` ∈ [0,1] (fractions of the edge's arc length, default `0..1` = whole
+   edge). The join uses only that slice of the edge. Stored **only** when it's a real sub-span, so v1
+   files and full-edge members stay byte-identical.
+2. **Seam `fit` + `anchor`** — `fit:"partial"` marks an **intentional** unequal/sub-span join: the
+   length-mismatch hint is **suppressed**, and the mated spans line up from the **`anchor`** end
+   (`"start"` default, or `"end"`) instead of being stretched end-to-end. Absent `fit` = `"full"` =
+   exactly v1 behaviour.
+
+**Authoring (Pattern Designer):** the seam editor gains a **Join: Full / Partial** dropdown; when
+Partial, an **Anchor: Start / End** dropdown and per-member **Start % / End %** span fields appear.
+Switching back to Full clears the spans. (Interactive drag-handles on the canvas are deferred —
+numeric authoring + the 3D preview cover the need for now.) `seamLengthIssues()` returns `[]` for a
+partial seam. `normMember()`/`normSeam()` persist the new fields (they previously stripped unknowns).
+
+**Consumer (Leather Studio 3D):** clips each member polyline to `[t0,t1]`; for `fit:"partial"` it
+skips the Tier-1 length warning, anchors `align2D` at the chosen end (overlap the shorter span, no
+stretch), and skips the Tier-2 gap check (intentionally unequal). See `SEAM-CONSUMPTION.md` §9.
+
+No `.lpd` **file** version bump (v15 already carried `assembly`); only the internal
+`assembly.version` advances 1→2. Old v1 assemblies load unchanged.
 
 ---
 

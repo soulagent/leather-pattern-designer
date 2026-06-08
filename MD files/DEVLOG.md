@@ -263,6 +263,37 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.4 — 2026-06-08
+
+### Partial / unequal-length seams (U6) — assembly-schema v2
+
+Card-holder feedback U6 (cross-app, paired with the same change in Leather Studio 3D). The v1 seam
+model assumed every member was the **whole edge** and that mated edges were **equal length** (a
+difference was flagged as a Tier-1 problem). Real goods break this — a T-pocket joins only a portion
+of its side; a front pocket is much shorter than the back. v2 adds two optional, back-compatible
+pieces (no `.lpd` **file** bump — v15 already carried `assembly`; only the internal
+`assembly.version` advances 1→2):
+
+- **Member sub-span** — optional `t0`/`t1` ∈ [0,1] (fractions of the edge's arc length, default whole
+  edge). Stored only when it's a real sub-span, so v1 files + full-edge members stay byte-identical.
+  `normMember()` (new) + `normSeam()` now **persist** these — they previously stripped unknown fields.
+- **Seam `fit` + `anchor`** — `fit:"partial"` marks an intentional unequal/sub-span join: the
+  length-mismatch hint is **suppressed** and the mated spans line up from the `anchor` end
+  (`"start"`/`"end"`). Absent = `"full"` = exact v1 behaviour.
+- **Authoring** — the seam editor gains a **Join: Full / Partial** dropdown; Partial reveals an
+  **Anchor** dropdown + per-member **Start % / End %** span fields (`setSeamFit`/`setSeamAnchor`/
+  `setMemberSpan`). Switching back to Full clears the spans. `seamLengthIssues()` returns `[]` for
+  partial seams. (Interactive drag-handles on the canvas are deferred — numeric authoring + the 3D
+  preview cover the need.)
+- **3D consumer** (Leather Studio 3D v0.0.7) clips members to `[t0,t1]`, skips the Tier-1 length +
+  Tier-2 gap checks for partial seams, and anchors `align2D` at the chosen end. Contract in
+  `SEAM-MODEL.md` §12 + the 3D repo's `SEAM-CONSUMPTION.md` §9.
+
+`saveload` smoke gains partial round-trip + suppressed-hint asserts; full **468/468**, build smoke
+**64/64**. Built **saffron-tern-V15**.
+
+---
+
 ## v0.8.3 — 2026-06-08
 
 ### Folds authoring (Step 6 of 6) — completes the seam plan
