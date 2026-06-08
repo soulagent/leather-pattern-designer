@@ -241,7 +241,10 @@ Brief, so the schema is justified end-to-end:
 - **Instructions (later):** an ordered traversal of `seams` by `order` (then graph order) yields the
   Lego-manual steps.
 
-The 3D app **never writes** `.lpd` — it consumes `assembly` read-only.
+The 3D app **never writes** `.lpd` — it consumes `assembly` read-only. **Full consumption design (#10)
+lives in the 3D repo: `Leather Studio 3D/MD files/SEAM-CONSUMPTION.md`** — phased fold (2a seam-aware
+flat view → 2b rigid hinge-tree → 2c constrained/template close), Tier-1/Tier-2 problem detection, and
+the instructions tie-in.
 
 ---
 
@@ -385,8 +388,8 @@ the Seam tool + that seam. Minimal; keeps Select uncluttered.
   valid **edge finish** (badge distinguishes it from a join); deleting a shape prunes its members via
   `validateSeams()` with a flash.
 
-_This is UI design only — no code this pass. Next design task: #10, how Leather Studio 3D consumes
-this to fold/preview + flag problems._
+_This is UI design only — no code this pass. The 3D consumption design (#10) is done:
+`Leather Studio 3D/MD files/SEAM-CONSUMPTION.md`._
 
 ---
 
