@@ -700,7 +700,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.5</div>
+  <div id="app-title">Leather Pattern Designer v0.8.6</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -1144,8 +1144,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.5';
-const BUILD_TAG = 'crimson-tanager-V16';
+const APP_VERSION = 'v0.8.6';
+const BUILD_TAG = 'hazel-godwit-V17';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -2330,6 +2330,8 @@ function shapeEdgeCount(sh){
   return 0;
 }
 function edgeStitched(sh, e){
+  // U7: a shared-stitch seam owns this edge → it's stitched by the seam layout, not independently.
+  if(sh.id!=null && sharedSeamForEdge(sh.id, e)) return false;
   if(!sh.hasStitch) return false;
   if(!sh.stitchEdges) return true;          // undefined = all edges
   return sh.stitchEdges.includes(e);
@@ -2383,6 +2385,59 @@ function validateSeams(opts){
 }
 // The seam a given edge belongs to, or null. (Derived map; rebuilt by validateSeams.)
 function seamForEdge(id, edge){ return (S._seamMap && S._seamMap.get(id+':'+edge)) || null; }
+
+// ── U7: shared stitch layout — a stitch seam can own ONE hole layout so its members' holes
+// coincide across the stack (one running stitch sews every layer). seamStitchLayout() computes the
+// SAME hole count N at matching fractions for every member, mapped into each member's [t0,t1] span
+// from the anchor end; the per-edge independent stitching for those edges is overridden. Both LPD and
+// Leather Studio 3D derive holes from this identical contract, so the stitch line stays continuous. ──
+// The shared-stitch seam that owns this edge (and so overrides its independent stitching), or null.
+function sharedSeamForEdge(id, edge){
+  const seam = seamForEdge(id, edge);
+  return (seam && seam.type==='stitch' && seam.stitch && seam.stitch.shared) ? seam : null;
+}
+// Local-frame tangent angle (rad) of an edge at param t — orients the stitch hole.
+function edgeTangentAt(sh, e, t){
+  const p0=edgePointAt(sh,e,Math.max(0,t-0.01)), p1=edgePointAt(sh,e,Math.min(1,t+0.01));
+  return Math.atan2(p1.y-p0.y, p1.x-p0.x);
+}
+// Per-member shared hole layout for a stitch seam with stitch.shared. Returns a Map
+// "shapeId:edge" -> [holes] (local frame, same hole shape as stitchFor pts), or null. Every member
+// gets N+1 holes (forced endpoints) at fractions k/N measured FROM THE ANCHOR END, so hole k lines
+// up across all members. Count N derives from the reference (first) member's span and the spacing.
+function seamStitchLayout(seam){
+  if(!seam || seam.type!=='stitch' || !seam.stitch || !seam.stitch.shared) return null;
+  const ms = seam.members.map(m=>({m, sh:getShape(m.shape)})).filter(x=>x.sh && (x.sh.type==='rect'||x.sh.type==='path'));
+  if(ms.length<2) return null;
+  const sp = (seam.stitch.spacing>0 ? seam.stitch.spacing : (S.defSpacing||3.38));
+  const span = (sh,m)=>{ const t0=m.t0==null?0:m.t0, t1=m.t1==null?1:m.t1; return edgeLength(sh,m.edge)*Math.abs(t1-t0); };
+  const Lref = span(ms[0].sh, ms[0].m);
+  const N = Math.max(1, Math.round(Lref/sp));
+  const anchorEnd = seam.anchor==='end';
+  const out = new Map();
+  for(const {m,sh} of ms){
+    const t0=m.t0==null?0:m.t0, t1=m.t1==null?1:m.t1, pts=[];
+    for(let k=0;k<=N;k++){
+      const f=k/N, ff=anchorEnd?(1-f):f, t=t0+(t1-t0)*ff, end=(k===0||k===N);
+      const p=edgePointAt(sh,m.edge,t);
+      pts.push({x:p.x, y:p.y, a:edgeTangentAt(sh,m.edge,t), forced:end, hl:end});
+    }
+    out.set(m.shape+':'+m.edge, pts);
+  }
+  return out;
+}
+// Holes contributed to shape `s` by any shared-stitch seam its edges belong to (local frame).
+function sharedSeamHolesForShape(s){
+  if(s.id==null || !S.assembly) return [];
+  const out=[];
+  for(const seam of S.assembly.seams){
+    if(seam.type!=='stitch' || !seam.stitch || !seam.stitch.shared) continue;
+    if(!seam.members.some(m=>m.shape===s.id)) continue;
+    const layout=seamStitchLayout(seam); if(!layout) continue;
+    for(const m of seam.members){ if(m.shape===s.id){ const pts=layout.get(m.shape+':'+m.edge); if(pts) out.push(...pts); } }
+  }
+  return out;
+}
 
 function stitchRect(sh) {
   const m=sh.stitchMargin??S.defMargin, sp=sh.stitchSpacing??S.defSpacing;
@@ -2960,9 +3015,16 @@ function shapeBody(s,sel,hov){
 // Stitch-hole data for a shape, or null when not stitched. Rounded rects stitch via a
 // synthetic bezier path so the stitch line follows the curved corners.
 function stitchFor(s){
-  if(!s.hasStitch) return null;
-  if(rectRounded(s)) return stitchPath({points:roundedRectPathPts(s),closed:true,hasStitch:true,stitchMargin:s.stitchMargin,stitchSpacing:s.stitchSpacing});
-  return s.type==='rect'?stitchRect(s):s.type==='circle'?stitchCircle(s):stitchPath(s);
+  // Independent per-edge holes (edges owned by a shared-stitch seam are skipped via edgeStitched).
+  let base=null;
+  if(s.hasStitch){
+    base = rectRounded(s) ? stitchPath({points:roundedRectPathPts(s),closed:true,hasStitch:true,stitchMargin:s.stitchMargin,stitchSpacing:s.stitchSpacing})
+         : s.type==='rect'?stitchRect(s):s.type==='circle'?stitchCircle(s):stitchPath(s);
+  }
+  // U7: holes from any shared-stitch seam this shape's edges belong to (aligned across the stack).
+  const seamPts = sharedSeamHolesForShape(s);
+  if(!base && !seamPts.length) return null;
+  return {pts: (base?base.pts:[]).concat(seamPts)};
 }
 
 function renderContent() {
@@ -4560,6 +4622,21 @@ function seamEditorHTML(seam){
       : `<div class="p-field"></div>`)
     +`</div>`;
   if(partial) h+=`<p class="p-note" style="opacity:.7;margin-top:0">Each edge's <b>span</b> (% along the edge) sets how much of it joins — shown as a <b>bold band</b> on the canvas, with a dot at the anchor end. Mated spans line up from the anchor.</p>`;
+  // U7 — shared stitch: one hole layout shared by every member so holes coincide across the stack.
+  if(seam.type==='stitch'){
+    const shared = !!(seam.stitch && seam.stitch.shared);
+    h+=`<label class="p-ck-row" title="Give every member edge the same hole layout so one running stitch sews all the stacked pieces"><input type="checkbox" ${shared?'checked':''} onchange="setSeamShared(${seam.id}, this.checked)"> Stitch as one seam</label>`;
+    if(shared){
+      const sv = seam.stitch.spacing>0 ? seam.stitch.spacing : (S.defSpacing||3.38);
+      const inPreset = SPACING_PRESETS.includes(String(sv));
+      const opts = (inPreset?'':`<option value="${sv}" selected>${sv} mm</option>`)
+        + SPACING_PRESETS.map(p=>`<option value="${p}"${(+p===+sv)?' selected':''}>${p} mm</option>`).join('');
+      h+=`<div class="p-pair"><div class="p-field"><span class="p-fl-w">Spacing</span>`
+        +`<select class="p-sel" id="seam-stitch-sp" title="Hole interval (pricking-iron size) for the shared stitch" onchange="setSeamStitchSpacing(${seam.id}, this.value)">${opts}</select>`
+        +`</div><div class="p-field"></div></div>`;
+      h+=`<p class="p-note" style="opacity:.7;margin-top:0">Member edges share this layout — their own per-edge stitching is overridden so the holes line up through the layers.</p>`;
+    }
+  }
   const issues=seamLengthIssues(seam), bad=new Set(issues.map(x=>x.i));
   h+=`<div class="p-grp">Members (${seam.members.length})</div>`;
   if(!seam.members.length) h+=`<p class="p-note" style="opacity:.75">No edges. Pick edges with the Seam tool, then “Add”.</p>`;
@@ -4625,6 +4702,22 @@ function setSeamAnchor(id, anchor){
   anchor = anchor==='end' ? 'end' : 'start';
   if(s.anchor===anchor) return;
   pushHist(); s.anchor=anchor; renderContent();
+}
+// U7 — shared stitch: the seam owns one hole layout so its members' holes coincide across the stack.
+function setSeamShared(id, on){
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s || s.type!=='stitch') return;
+  const cur = !!(s.stitch && s.stitch.shared);
+  if(cur===!!on) return;
+  pushHist();
+  if(on){ s.stitch = { shared:true, spacing: (S.defSpacing||3.38) }; }
+  else delete s.stitch;
+  renderContent();
+}
+function setSeamStitchSpacing(id, raw){
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s || !s.stitch || !s.stitch.shared) return;
+  let v=Number(raw); if(!isFinite(v)||v<=0) v=(S.defSpacing||3.38);
+  if(s.stitch.spacing===v) return;
+  pushHist(); s.stitch.spacing=v; renderContent();
 }
 // Set one end of a member's sub-span (which='t0'|'t1', raw is a 0..100 percent). Stored only when
 // it's a real partial span; a full 0..100 clears the fields (back to whole-edge).
@@ -5247,10 +5340,18 @@ function normSeam(s,i){
   // v2 (U6): an intentional PARTIAL/unequal join — anchor the shorter span instead of
   // stretching, and the length-mismatch hint is suppressed. Absent = 'full' (the v1 default).
   if(s.fit==='partial'){ out.fit='partial'; out.anchor = (s.anchor==='end' ? 'end' : 'start'); }
+  // v3 (U7): a stitch seam can own ONE shared stitch layout so its members' holes coincide across
+  // the stack (one running stitch sews all layers). Only meaningful for type 'stitch'. Absent =
+  // each member edge stitches independently (v1/v2 behaviour).
+  if(out.type==='stitch' && s.stitch && s.stitch.shared){
+    out.stitch = { shared:true };
+    if(typeof s.stitch.spacing==='number' && s.stitch.spacing>0) out.stitch.spacing = s.stitch.spacing;
+    if(typeof s.stitch.margin==='number'  && s.stitch.margin>=0) out.stitch.margin  = s.stitch.margin;
+  }
   return out;
 }
 function normAssembly(a){
-  if(!a || typeof a!=='object') return {version:2, seams:[], folds:[]};
+  if(!a || typeof a!=='object') return {version:3, seams:[], folds:[]};
   const seams = Array.isArray(a.seams) ? a.seams.map(normSeam).filter(Boolean) : [];
   const folds = Array.isArray(a.folds)
     ? a.folds.filter(f=>f && typeof f.shape==='number' && f.a && f.b)
@@ -5258,7 +5359,7 @@ function normAssembly(a){
           a:{x:+f.a.x||0,y:+f.a.y||0}, b:{x:+f.b.x||0,y:+f.b.y||0},
           angle:(typeof f.angle==='number'?f.angle:0), name:(f.name!=null?String(f.name):'fold '+(i+1))}))
     : [];
-  return {version:a.version||2, seams, folds};
+  return {version:Math.max(3, a.version||0), seams, folds};
 }
 
 function applyLoadedData(data){

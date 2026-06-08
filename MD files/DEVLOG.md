@@ -263,6 +263,37 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.6 — 2026-06-09
+
+### U7 — shared stitch across stacked pieces (assembly-schema v3)
+
+Card-holder feedback U7 (cross-app, paired with Leather Studio 3D v0.0.9). Until now every piece was
+stitched **independently** — each edge's holes from its own length/margin/spacing — so two edges joined
+by a stitch seam got different hole counts and the holes didn't line up when the pieces are stacked. You
+couldn't run **one** saddle stitch through the whole stack (the card holder: back · T-pocket · front on
+one seam). U7 lets a **stitch seam own one shared hole layout**.
+
+- **Schema v3 (back-compat).** Optional per-seam `stitch:{shared:true, spacing?}`. Absent = today's
+  independent stitching, so every existing file is byte-identical. `normSeam` persists it (stitch type
+  only); `normAssembly` advances the internal `assembly.version` 2→3. No `.lpd` file-version bump (v15).
+- **Shared layout.** `seamStitchLayout(seam)` computes `N = round(refLen/spacing)` once and stamps the
+  **same hole count at matching fractions** onto every member, mapped into each member's `[t0,t1]` span
+  (U6) from the anchor end — so holes coincide across the stack. Helpers `edgePointAt`/`edgeTangentAt`/
+  `sharedSeamForEdge`/`sharedSeamHolesForShape`.
+- **Override.** `edgeStitched()` returns false for a shared-seam member edge (its independent stitching
+  is overridden); `stitchFor()` merges in the seam holes — even when the piece's own `hasStitch` is off.
+- **Partial overlap** (U6) supported: holes stay within each member's sub-span.
+- **Authoring.** Seam editor (stitch type) gains a **"Stitch as one seam"** checkbox + a **Spacing**
+  iron-size dropdown (`setSeamShared`/`setSeamStitchSpacing`).
+- **Deferred (first cut, agreed):** rounded-rect edges as members (synthetic path loses the id); exact
+  arc-length sampling on curved members (param-space for now — exact for straight edges); de-duping a
+  forced corner shared with an adjacent independently-stitched edge.
+
+Design + LPD↔3D contract in `MD files/SEAM-MODEL.md` §13. `seam` smoke gains 11 U7 asserts (shared
+layout, override, round-trip, partial sub-span); full **487/487**, build smoke **64/64**.
+
+---
+
 ## v0.8.5 — 2026-06-09
 
 ### Card-holder feedback polish: readable seam labels + partial-seam canvas viz

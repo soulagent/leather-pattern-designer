@@ -427,5 +427,55 @@ No `.lpd` **file** version bump (v15 already carried `assembly`); only the inter
 
 ---
 
+## 13. Assembly-schema v3 — shared stitch across stacked pieces (U7, 2026-06-09)
+
+The v1/v2 model stitched every piece **independently**: each edge's holes came from that edge's own
+length + margin + spacing (`N = round(len/spacing)`, even fractions, forced corners). Two edges joined
+by a stitch seam therefore got **different hole counts/positions** unless their lengths matched by
+luck — so when the 3D app stacks the pieces, the holes don't line up and you can't run **one** saddle
+stitch through the whole stack (the card-holder reality: back · T-pocket · front all on one seam).
+
+v3 lets a **stitch-type seam own ONE shared hole layout**:
+
+```jsonc
+"stitch": { "shared": true, "spacing": 3.38 }   // OPTIONAL, per-seam; absent = independent per-edge stitching
+```
+
+- **`shared`** — when true (and `type:"stitch"`), the seam computes one layout and stamps the **same
+  hole count at matching fractions** onto every member edge. **`spacing`** (mm, optional) defaults to
+  the doc default spacing.
+- **Layout** — `L` = the reference (first) member's sewn-span length; `N = max(1, round(L/spacing))`;
+  holes at `k/N`, `k=0..N` (endpoints forced), mapped into each member's `[t0,t1]` span (U6) **from the
+  anchor end**. Because the fractions are evenly spaced, the resulting hole *positions* are the same set
+  regardless of anchor direction — anchor only matters for the partial sub-span itself.
+- **Override** — member edges of a shared-stitch seam are **not** stitched independently
+  (`edgeStitched()` returns false for them); the seam's holes are added instead. One source of truth →
+  holes always coincide. The member edges' own per-edge stitching is ignored while `shared` is on.
+- **Partial overlap** — works with U6: each member's holes stay within its `[t0,t1]` sub-span, so an
+  intentional partial join sews only its overlapping region.
+
+**Authoring (Pattern Designer):** the seam editor (stitch type only) gains a **"Stitch as one seam"**
+checkbox + a **Spacing** iron-size dropdown. Helpers `setSeamShared`/`setSeamStitchSpacing`; layout via
+`seamStitchLayout(seam)` → per-member `"id:edge"` → holes; `sharedSeamForEdge(id,e)` /
+`sharedSeamHolesForShape(s)` feed `stitchFor()`.
+
+**Consumer (Leather Studio 3D):** `buildAssembly` carries `seam.stitch`; `collectStitches` adds aligned
+holes + threads from `seamStitchSegments3D(sh)`, which resamples each member's (clipped) polyline to the
+**same N+1 arc-length points** (the exact pairing the seam connectors already use) so the holes coincide
+once `align2D` pins the member edges together. `edgeStitched` skips seam-owned edges. **`buildAssembly`
+now runs BEFORE per-piece stitch collection** (it used to run after — the reason early shared-stitch
+holes were empty). See `SEAM-CONSUMPTION.md` §10.
+
+**Deferred (first cut, agreed):** rounded-rect edges as shared-stitch members (the synthetic rounded
+path loses the shape id, so the override can't match — plain-rect/path members are supported); exact
+arc-length parameterisation on **curved** member edges (v1 samples by Bézier param — exact for the
+common straight-edge case); de-duping a forced corner hole shared between a seam edge and an adjacent
+independently-stitched edge.
+
+No `.lpd` **file** bump (still v15); internal `assembly.version` advances 2→3. v1/v2 assemblies load
+unchanged (absent `stitch` = independent stitching).
+
+---
+
 _This document is the contract between the two apps. Keep it in sync if the edge indexing or the
 `assembly` shape ever changes; the 3D app's loader depends on it._

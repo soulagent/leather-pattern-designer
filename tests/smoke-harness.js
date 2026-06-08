@@ -136,7 +136,7 @@ window.__SMOKE__ = function (spec) {
       assert('round-trip → per-piece thickness preserved', S.shapes[0].thickness === 1.6, `thickness=${S.shapes[0].thickness}`);
       assert('seamForEdge → derived map resolves a member', seamForEdge(S.shapes[0].id, 0) === S.assembly.seams[0], 'map miss');
       assert('seamForEdge → pruned/absent edge = null', seamForEdge(S.shapes[1].id, 0) === null, 'circle edge unexpectedly mapped');
-      assert('v14 file (no assembly) → empty assembly default', normAssembly(undefined).seams.length === 0 && normAssembly(undefined).version === 2);
+      assert('v14 file (no assembly) → empty assembly default', normAssembly(undefined).seams.length === 0 && normAssembly(undefined).version === 3);
       assert('round-trip → settings.defSpacing preserved', saved.settings.defSpacing === S.defSpacing, `${saved.settings.defSpacing} vs ${S.defSpacing}`);
       assert('round-trip → settings.stitchStyle preserved', S.stitchStyle === 'french', `stitchStyle=${S.stitchStyle}`);
       assert('round-trip → shape label preserved', S.shapes[2].label === 'Gusset' && S.shapes[2].showLabel === true, `label=${S.shapes[2].label}, show=${S.shapes[2].showLabel}`);
@@ -1499,6 +1499,55 @@ window.__SMOKE__ = function (spec) {
       assert('band: edgeBandD spans t0..t1, offset interior',
         edgeBandD(S.shapes[0], 0, 0.25, 0.75, 10) === 'M25,10 L75,10',
         edgeBandD(S.shapes[0], 0, 0.25, 0.75, 10));
+
+      // U7 — shared stitch layout: every member gets the SAME hole count at matching fractions so
+      // the holes coincide across the stack; member edges' independent stitching is overridden.
+      reset();
+      S.assembly.seams = []; S._seamMap = new Map(); S.activeSeam = null;   // reset() leaves assembly intact
+      addShape({ type: 'rect', x: 0, y: 0, w: 100, h: 80 });   // edge 0 (top) + edge 2 (bottom) both 100mm
+      const u7id = S.shapes[0].id;
+      S.seamSel = [{ id: u7id, edge: 0 }, { id: u7id, edge: 2 }];
+      createSeamFromSelection();
+      let u7s = S.assembly.seams[0];
+      setSeamShared(u7s.id, true);
+      u7s = S.assembly.seams.find(s => s.id === u7s.id);
+      assert('U7: shared flag set + default spacing', u7s.stitch && u7s.stitch.shared === true && u7s.stitch.spacing > 0, JSON.stringify(u7s.stitch));
+      const u7lay = seamStitchLayout(u7s);
+      const la = u7lay.get(u7id + ':0'), lb = u7lay.get(u7id + ':2');
+      assert('U7: both members laid out', !!la && !!lb);
+      assert('U7: members share hole count (coincide)', la.length === lb.length && la.length >= 2, `${la && la.length} vs ${lb && lb.length}`);
+      assert('U7: count = round(len/spacing)+1', la.length === Math.round(100 / u7s.stitch.spacing) + 1, `n=${la.length}`);
+      assert('U7: endpoints forced', la[0].forced && la[la.length - 1].forced);
+      // edge owned by the shared seam is not independently stitched; a free edge still is
+      S.shapes[0].hasStitch = true;
+      assert('U7: member edge skipped by edgeStitched', edgeStitched(S.shapes[0], 0) === false);
+      assert('U7: non-member edge still stitched', edgeStitched(S.shapes[0], 1) === true);
+      // stitchFor surfaces the seam holes even when the shape has no independent stitch
+      S.shapes[0].hasStitch = false;
+      const u7sf = stitchFor(S.shapes[0]);
+      assert('U7: stitchFor surfaces seam holes', u7sf && u7sf.pts.length === la.length + lb.length, `pts=${u7sf && u7sf.pts.length}`);
+      // round-trip persistence + schema bump
+      const wireU7 = JSON.parse(JSON.stringify(buildSaveData()));
+      applyLoadedData(wireU7);
+      const u7r = S.assembly.seams[0];
+      assert('U7: shared stitch survives round-trip', u7r.stitch && u7r.stitch.shared === true, JSON.stringify(u7r.stitch));
+      assert('U7: assembly schema bumped to v3', S.assembly.version >= 3, `v=${S.assembly.version}`);
+      // partial overlap: a sub-span member still shares the layout (anchored)
+      reset();
+      S.assembly.seams = []; S._seamMap = new Map(); S.activeSeam = null;
+      addShape({ type: 'rect', x: 0, y: 0, w: 100, h: 80 });
+      const u7p = S.shapes[0].id;
+      S.seamSel = [{ id: u7p, edge: 0 }, { id: u7p, edge: 2 }];
+      createSeamFromSelection();
+      const ps = S.assembly.seams[0];
+      setSeamFit(ps.id, 'partial');
+      setMemberSpan(ps.id, 0, 't1', '50');   // member 0 sews only first 50%
+      setMemberSpan(ps.id, 1, 't1', '50');
+      setSeamShared(ps.id, true);
+      const pl = seamStitchLayout(S.assembly.seams.find(s => s.id === ps.id));
+      const pa = pl.get(u7p + ':0');
+      assert('U7: partial member count from sub-span (~50mm)', pa.length === Math.round(50 / S.assembly.seams.find(s => s.id === ps.id).stitch.spacing) + 1, `n=${pa.length}`);
+      assert('U7: partial holes stay within the sub-span', pa.every(p => p.x <= 50.001), 'a hole ran past the 50% span');
 
       // ── Folds (v15): crease authoring via the Seam tool's fold sub-mode ──
       setTool('seam'); setFoldMode(true);
