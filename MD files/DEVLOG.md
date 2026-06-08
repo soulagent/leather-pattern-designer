@@ -26,6 +26,17 @@ Remaining after the v0.7.20 accessibility/UX pass:
   Updates* (give the manual path an in-progress indicator too). _Same change wanted in Leather Studio
   3D — see its CONTEXT.md backlog; the 3D app also has a bug where the prompt only shows on `.lpd`
   open, not on the home screen._
+- [ ] **Partial / unequal-length seam joins** (user 2026-06-08, card-holder feedback). Seams
+  currently expect ~equal-length edges (length-mismatch is a Tier-1 warning). Real goods need partial
+  joins: a T-pocket connects only a small portion of its sides; a front pocket is much shorter than
+  the back. Add seams that join a **sub-span** of an edge (or align by one end / a chosen offset) and
+  relax the mismatch rule for intentional partial joins. Update `MD files/SEAM-MODEL.md`; consumed by
+  Leather Studio 3D's `align2D`/stacking (U6).
+- [ ] **Stitching across stacked/grouped pieces** (user 2026-06-08, card-holder feedback). Stitch
+  holes need to **align through stacked layers** (one stitch line sews multiple pieces) so a real card
+  holder's stitching looks right — pieces are stitched independently in their own 2D frame today.
+  Likely a new setup/tool: stitch a seam/group as a unit so holes coincide across the stack; 3D then
+  renders them aligned (U7). Depends on the 3D stitch-render fixes (U5) + partial seams (above).
 
 _(Larger separate efforts are tracked in their own memories: the 3D companion app and the C++
 migration — see the project memory.)_
