@@ -32,11 +32,16 @@ Remaining after the v0.7.20 accessibility/UX pass:
   the back. Add seams that join a **sub-span** of an edge (or align by one end / a chosen offset) and
   relax the mismatch rule for intentional partial joins. Update `MD files/SEAM-MODEL.md`; consumed by
   Leather Studio 3D's `align2D`/stacking (U6).
-- [ ] **Stitching across stacked/grouped pieces** (user 2026-06-08, card-holder feedback). Stitch
-  holes need to **align through stacked layers** (one stitch line sews multiple pieces) so a real card
-  holder's stitching looks right — pieces are stitched independently in their own 2D frame today.
-  Likely a new setup/tool: stitch a seam/group as a unit so holes coincide across the stack; 3D then
-  renders them aligned (U7). Depends on the 3D stitch-render fixes (U5) + partial seams (above).
+- [x] ~~**Stitching across stacked/grouped pieces** (U7).~~ DONE v0.8.6 — shared-stitch seams
+  (`stitch:{shared,spacing}`, assembly-schema v3); see the v0.8.6 entry.
+- [ ] **Seam/stack orientation looks INVERTED (user 2026-06-09, FUTURE — not started).** On the
+  SampleCardHolder the assembled 3D stack doesn't match the intended nesting — pieces appear joined on
+  the **wrong side**, as if a seam edge was created on the **outside instead of the inside**. User's
+  hunch: a **pen-tool edge-creation** issue (the T-pocket is a pen path; its seam edge winding/index
+  may make the stack fold the wrong way). Reference renders in repo root: `Weird3DRender.png` (wrong)
+  vs `IntendedStack.png` (intended 2D nesting). Suspects: pen-path **edge winding / index**, seam
+  member orientation, or 3D `align2D` direction/anchor inference. Also mirrored in Leather Studio 3D
+  `CONTEXT.md` backlog #8. NOT yet diagnosed.
 
 _(Larger separate efforts are tracked in their own memories: the 3D companion app and the C++
 migration — see the project memory.)_
@@ -260,6 +265,21 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ### Known accepted rough edges
 - Very acute "sliver" corners (margin wider than the local feature width) — the inward offset is geometrically degenerate there; the min-gap pass prevents pile-ups but the geometry stays rough.
+
+---
+
+## v0.8.7 — 2026-06-09
+
+### Stitch fix — shared-stitch holes respect the margin (paired with 3D v0.0.10)
+
+User feedback on the shipped U7: the shared "stitch as one seam" placed holes **on the seam line**,
+ignoring the stitch margin. `seamStitchLayout` now offsets each member's holes **inward by the margin**
+(`seam.stitch.margin`, else default) toward the shape interior — new `seamShapeCentroid` picks the
+inward normal — so the shared stitch sits in from the edge like independent stitching. The 3D companion
+got the matching fix plus a thread-mirror fix (v0.0.10). Geometry-only; schema v15 / assembly v3
+unchanged. `seam` smoke still 82 (positions verified). _Carry-forward TODOs (next session): the 3D
+render may be showing the **back face** (flipped), and the saddle-stitch slant leans the wrong way —
+see the DEVLOG Open TODOs + memory._
 
 ---
 

@@ -1,8 +1,8 @@
 {
   "_comment": "Build ledger for the packaged desktop exe. APP_VERSION (dev/working number) lives in index.html; each /build mints a new buildTag = two random words + -V<buildCount> and appends it to history. On the next /build: increment buildCount, generate two fresh random words, set buildTag, update BUILD_TAG in index.html, then cargo tauri build.",
-  "devVersion": "0.8.6",
-  "buildCount": 17,
-  "buildTag": "hazel-godwit-V17",
+  "devVersion": "0.8.7",
+  "buildCount": 18,
+  "buildTag": "teal-stork-V18",
   "history": [
     { "v": 1, "tag": "slate-heron-V1", "dev": "0.6.2", "date": "2026-06-03" },
     { "v": 2, "tag": "copper-marten-V2", "dev": "0.6.2", "date": "2026-06-03" },
@@ -20,6 +20,7 @@
     { "v": 14, "tag": "russet-marten-V14", "dev": "0.8.3", "date": "2026-06-08", "note": "folds authoring: Seam-tool fold mode + Assembly Folds list/editor (mountain/valley angle)" },
     { "v": 15, "tag": "saffron-tern-V15", "dev": "0.8.4", "date": "2026-06-08", "note": "U6 partial/unequal-length seams: assembly-schema v2 (member t0/t1 sub-span + seam fit/anchor); seam editor Full/Partial + anchor + per-member span %; seamLengthIssues skips partial" },
     { "v": 16, "tag": "crimson-tanager-V16", "dev": "0.8.5", "date": "2026-06-09", "note": "card-holder feedback polish: seam-editor labels no longer clipped (.p-fl-w) + readability smoke; partial-seam join drawn as a bold band on the canvas (edgeBandD)" },
-    { "v": 17, "tag": "hazel-godwit-V17", "dev": "0.8.6", "date": "2026-06-09", "note": "U7 shared stitch across stacked pieces: assembly-schema v3 (seam stitch{shared,spacing}); seamStitchLayout stamps one aligned hole layout on all members (override per-edge); seam-editor 'Stitch as one seam' toggle + Spacing" }
+    { "v": 17, "tag": "hazel-godwit-V17", "dev": "0.8.6", "date": "2026-06-09", "note": "U7 shared stitch across stacked pieces: assembly-schema v3 (seam stitch{shared,spacing}); seamStitchLayout stamps one aligned hole layout on all members (override per-edge); seam-editor 'Stitch as one seam' toggle + Spacing" },
+    { "v": 18, "tag": "teal-stork-V18", "dev": "0.8.7", "date": "2026-06-09", "note": "stitch fixes: shared-stitch holes now inset by the stitch margin (seamStitchLayout + seamShapeCentroid), not on the edge line" }
   ]
 }

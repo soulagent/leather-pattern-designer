@@ -700,7 +700,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.6</div>
+  <div id="app-title">Leather Pattern Designer v0.8.7</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -1144,8 +1144,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.6';
-const BUILD_TAG = 'hazel-godwit-V17';
+const APP_VERSION = 'v0.8.7';
+const BUILD_TAG = 'teal-stork-V18';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -2410,6 +2410,7 @@ function seamStitchLayout(seam){
   const ms = seam.members.map(m=>({m, sh:getShape(m.shape)})).filter(x=>x.sh && (x.sh.type==='rect'||x.sh.type==='path'));
   if(ms.length<2) return null;
   const sp = (seam.stitch.spacing>0 ? seam.stitch.spacing : (S.defSpacing||3.38));
+  const mg = (seam.stitch.margin>0 ? seam.stitch.margin : (S.defMargin||3));
   const span = (sh,m)=>{ const t0=m.t0==null?0:m.t0, t1=m.t1==null?1:m.t1; return edgeLength(sh,m.edge)*Math.abs(t1-t0); };
   const Lref = span(ms[0].sh, ms[0].m);
   const N = Math.max(1, Math.round(Lref/sp));
@@ -2417,14 +2418,28 @@ function seamStitchLayout(seam){
   const out = new Map();
   for(const {m,sh} of ms){
     const t0=m.t0==null?0:m.t0, t1=m.t1==null?1:m.t1, pts=[];
+    // Inward normal for this edge so holes sit the stitch margin IN from the edge (not on it).
+    const A=edgePointAt(sh,m.edge,0), B=edgePointAt(sh,m.edge,1);
+    let ex=B.x-A.x, ey=B.y-A.y; const eL=Math.hypot(ex,ey)||1; ex/=eL; ey/=eL;
+    let nx=-ey, ny=ex; const c=seamShapeCentroid(sh);
+    if((c.x-(A.x+B.x)/2)*nx + (c.y-(A.y+B.y)/2)*ny < 0){ nx=-nx; ny=-ny; }
     for(let k=0;k<=N;k++){
       const f=k/N, ff=anchorEnd?(1-f):f, t=t0+(t1-t0)*ff, end=(k===0||k===N);
       const p=edgePointAt(sh,m.edge,t);
-      pts.push({x:p.x, y:p.y, a:edgeTangentAt(sh,m.edge,t), forced:end, hl:end});
+      pts.push({x:p.x+nx*mg, y:p.y+ny*mg, a:edgeTangentAt(sh,m.edge,t), forced:end, hl:end});
     }
     out.set(m.shape+':'+m.edge, pts);
   }
   return out;
+}
+// Approximate local-frame centroid of a shape (rect/circle centre, path point average).
+function seamShapeCentroid(sh){
+  if(sh.type==='rect') return {x:sh.x+sh.w/2, y:sh.y+sh.h/2};
+  if(sh.type==='circle') return {x:sh.cx, y:sh.cy};
+  if(sh.type==='path' && sh.points && sh.points.length){
+    let sx=0, sy=0; for(const p of sh.points){ sx+=p.x; sy+=p.y; } return {x:sx/sh.points.length, y:sy/sh.points.length};
+  }
+  return {x:0, y:0};
 }
 // Holes contributed to shape `s` by any shared-stitch seam its edges belong to (local frame).
 function sharedSeamHolesForShape(s){
