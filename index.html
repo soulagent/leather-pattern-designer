@@ -139,6 +139,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
 /* ── LAYERS ── */
 #layers-list{display:flex;flex-direction:column;gap:2px;max-height:300px;overflow-y:auto}
 .seam-chip{width:11px;height:11px;border-radius:3px;flex-shrink:0;margin-right:2px;border:1px solid rgba(0,0,0,.25)}
+.seam-warn{margin-top:7px;padding:6px 8px;border-radius:5px;font-size:11px;line-height:1.35;color:#e74c3c;background:rgba(231,76,60,.10);border:1px solid rgba(231,76,60,.35)}
 /* artboard group header (shapes nest under it when there are multiple artboards / unplaced shapes) */
 .lay-group{display:flex;align-items:center;gap:5px;padding:4px 4px;margin-top:4px;border-radius:4px;cursor:pointer;
   font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-heading);font-weight:700;user-select:none}
@@ -694,7 +695,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.1</div>
+  <div id="app-title">Leather Pattern Designer v0.8.2</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -886,6 +887,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="p-sec-body" id="body-stitch">
         <label class="p-ck-row"><input type="checkbox" id="pi-stitch" onchange="toggleShapeStitch(this.checked)"> Stitch all edges</label>
         <label class="p-ck-row" id="edge-stitch-row" style="display:none"><input type="checkbox" id="pi-edge-stitch" onchange="toggleEdgeStitch(this.checked)"> <span id="edge-stitch-lbl">Stitch this edge</span></label>
+        <div id="seam-membership" style="display:none;margin-top:5px"></div>
         <p class="p-note" id="edge-hint">Tip: click an edge of the selected shape to pick which sides get stitched.</p>
         <div class="p-row"><span class="p-lbl">Margin</span><input class="p-inp" id="pi-margin" type="number" step="0.01" min="0.5" value="3" onchange="applyProps()"></div>
         <div class="p-row">
@@ -1130,8 +1132,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.1';
-const BUILD_TAG = 'umber-stoat-V12';
+const APP_VERSION = 'v0.8.2';
+const BUILD_TAG = 'ochre-bittern-V13';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -2146,6 +2148,25 @@ function edgeMidpoint(sh,e){
   }
   return {x:0,y:0};
 }
+// Arc length of an edge in mm (rotation-independent → local coords). Rect edge = straight; path edge
+// = sampled cubic. Used for the seam length-mismatch hint.
+function edgeLength(sh,e){
+  if(sh.type==='rect'){
+    const c=[[sh.x,sh.y],[sh.x+sh.w,sh.y],[sh.x+sh.w,sh.y+sh.h],[sh.x,sh.y+sh.h]];
+    const a=c[e], b=c[(e+1)%4]; return Math.hypot(b[0]-a[0], b[1]-a[1]);
+  }
+  if(sh.type==='path'){
+    const n=sh.points.length, p0=sh.points[e], p1=sh.points[(e+1)%n];
+    let len=0, px=p0.x, py=p0.y;
+    for(let t=0.05;t<=1.0001;t+=0.05){ const mt=1-t;
+      const x=mt*mt*mt*p0.x+3*mt*mt*t*p0.cp2x+3*mt*t*t*p1.cp1x+t*t*t*p1.x;
+      const y=mt*mt*mt*p0.y+3*mt*mt*t*p0.cp2y+3*mt*t*t*p1.cp1y+t*t*t*p1.y;
+      len+=Math.hypot(x-px,y-py); px=x; py=y;
+    }
+    return len;
+  }
+  return 0;
+}
 function edgeCursor(sh,e){
   if(sh && sh.type==='rect'){
     const N=[[0,-1],[1,0],[0,1],[-1,0]][e]||[0,-1]; // outward normal of edge top/right/bottom/left
@@ -3009,10 +3030,12 @@ function renderContent() {
     const halo=S.light?'#fff':'#0d0d1f';
     for(const seam of seams){
       const col=seamColor(seam.id), active=seam.id===S.activeSeam;
+      const bad=new Set(seamLengthIssues(seam).map(x=>x.i));
       seam.members.forEach((m,mi)=>{
         const s=getShape(m.shape); if(!s) return;
         const d=edgePathD(s,m.edge);
         let g=`<path class="seam-aid" d="${d}" fill="none" stroke="${col}" stroke-opacity="${active?0.95:0.6}" stroke-width="${(active?4.2:2.6)/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+        if(bad.has(mi)) g+=`<path class="seam-aid" d="${d}" fill="none" stroke="#e74c3c" stroke-width="${(active?2:1.6)/(S.zoom*PX)}" stroke-dasharray="${3/(S.zoom*PX)} ${2/(S.zoom*PX)}" vector-effect="non-scaling-stroke"/>`;
         if(mi===0){ const mid=edgeMidpoint(s,m.edge);
           g+=`<text class="seam-aid" x="${mid.x}" y="${mid.y-6/(S.zoom*PX)}" fill="${col}" font-size="${11/(S.zoom*PX)}" font-family="system-ui" text-anchor="middle" paint-order="stroke" stroke="${halo}" stroke-width="${2.5/(S.zoom*PX)}" stroke-linejoin="round">${escapeXML(seam.name)}</text>`;
         }
@@ -4331,6 +4354,17 @@ function renderArtboards(){
 // Stable per-seam colour from its id (golden-angle hue spread → distinct neighbours).
 function seamColor(id){ return `hsl(${(id*137.508)%360} 72% 55%)`; }
 const SEAM_TYPE_BADGE={stitch:'✄', fold:'⟋', glue:'●'};
+const SEAM_LEN_TOL=1.5; // mm — flag a join whose mated edges differ in length by more than this
+// Tier-1 hint, computable in the flat 2D layout: members of a multi-edge join whose edge length is
+// more than SEAM_LEN_TOL shorter than the longest member → can't sew/match cleanly. (Gap/orphan
+// detection needs the pieces positioned, so that lives in the 3D app, not here.)
+function seamLengthIssues(seam){
+  const ms=seam.members.map((m,i)=>{ const sh=getShape(m.shape); return sh?{i, sh, edge:m.edge, len:edgeLength(sh,m.edge)}:null; }).filter(Boolean);
+  if(ms.length<2) return [];
+  const maxLen=Math.max(...ms.map(x=>x.len));
+  return ms.filter(x=>maxLen-x.len>SEAM_LEN_TOL).map(x=>({i:x.i, shape:x.sh.id, edge:x.edge,
+    msg:`${layerName(x.sh)} · edge ${x.edge+1}: ${x.len.toFixed(1)} mm (longest ${maxLen.toFixed(1)} mm)`}));
+}
 // Group the pending edge picks (S.seamSel) into a new seam. One undo entry (the snapshot already
 // captures S.assembly). A 1-member seam is allowed (an edge finish); 2+ is a join.
 function createSeamFromSelection(){
@@ -4356,6 +4390,8 @@ function deleteSeam(id){
 }
 // Select/deselect a seam in the panel → highlights its member edges on the canvas (any tool).
 function selectSeam(id){ S.activeSeam = (S.activeSeam===id ? null : id); renderContent(); }
+// Jump from a selected edge (Select tool) to its seam in the Seam tool + Assembly panel.
+function goToSeam(id){ setTool('seam'); S.activeSeam=id; renderContent(); }
 function renderSeamsList(){
   const box=document.getElementById('seams-list'), sec=document.getElementById('sec-assembly'), ed=document.getElementById('seam-editor');
   if(!box||!sec) return;
@@ -4387,14 +4423,20 @@ function seamEditorHTML(seam){
     +`<div class="p-field"><span class="p-fl">Order</span><input class="p-inp" id="seam-order" type="number" step="1" value="${seam.order==null?'':seam.order}" placeholder="—" title="Assembly step order" onchange="setSeamField(${seam.id},'order',this.value)"></div>`
     +`<div class="p-field"><span class="p-fl">Allow.</span><input class="p-inp" id="seam-allow" type="number" step="0.1" min="0" value="${seam.allowance==null?'':seam.allowance}" placeholder="${S.defMargin||3}" title="Seam allowance (mm); blank = default margin" onchange="setSeamField(${seam.id},'allowance',this.value)"></div>`
     +`</div>`;
+  const issues=seamLengthIssues(seam), bad=new Set(issues.map(x=>x.i));
   h+=`<div class="p-grp">Members (${seam.members.length})</div>`;
   if(!seam.members.length) h+=`<p class="p-note" style="opacity:.75">No edges. Pick edges with the Seam tool, then “Add”.</p>`;
   seam.members.forEach((m,i)=>{
-    const sh=getShape(m.shape), nm=sh?layerName(sh):'(missing)';
-    h+=`<div class="lay-row"><span class="lay-name" title="${nm}">${nm} · edge ${m.edge+1}</span>`
+    const sh=getShape(m.shape), nm=sh?layerName(sh):'(missing)', w=bad.has(i);
+    h+=`<div class="lay-row"><span class="lay-name"${w?' style="color:#e74c3c"':''} title="${nm}">${w?'⚠ ':''}${nm} · edge ${m.edge+1}</span>`
       +`<button class="lay-arr" title="Find on canvas" onclick="locateSeamMember(${m.shape},${m.edge})">◎</button>`
       +`<button class="lay-arr" title="Remove from seam" onclick="removeSeamMember(${seam.id},${i})">✕</button></div>`;
   });
+  if(issues.length){
+    h+=`<div class="seam-warn">⚠ Length mismatch — these edges won't sew evenly:`;
+    issues.forEach(x=>{ h+=`<div style="margin-top:2px">${x.msg}</div>`; });
+    h+=`</div>`;
+  }
   if(S.seamSel.length) h+=`<button class="p-btn" style="width:100%;margin-top:6px" onclick="addPicksToSeam(${seam.id})">+ Add ${S.seamSel.length} picked edge${S.seamSel.length!==1?'s':''}</button>`;
   return h;
 }
@@ -4555,6 +4597,15 @@ function updatePropsPanel() {
   if(edgeSel){
     document.getElementById('pi-edge-stitch').checked = edgeStitched(sh, S.selEdge.edge);
     document.getElementById('edge-stitch-lbl').textContent = `Stitch edge ${S.selEdge.edge+1} of ${ec}`;
+  }
+  // Select-tool seam touchpoint: if the selected edge belongs to a seam, offer a jump to it.
+  const sm=document.getElementById('seam-membership');
+  if(sm){
+    const seam = edgeSel ? seamForEdge(S.selEdge.id, S.selEdge.edge) : null;
+    if(seam){
+      sm.style.display='';
+      sm.innerHTML=`<button class="p-btn" style="width:100%;display:flex;align-items:center;gap:7px;justify-content:flex-start" title="Edit this seam (Seam tool)" onclick="goToSeam(${seam.id})"><span class="seam-chip" style="background:${seamColor(seam.id)}"></span>Part of seam “${escapeXML(seam.name)}” →</button>`;
+    } else sm.style.display='none';
   }
   const m=sh.stitchMargin??S.defMargin, sp=sh.stitchSpacing??S.defSpacing;
   document.getElementById('pi-margin').value=m;                 // margin: free numeric input

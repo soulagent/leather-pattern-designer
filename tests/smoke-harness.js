@@ -1463,6 +1463,28 @@ window.__SMOKE__ = function (spec) {
       const soloId = solo.id, soloLen = solo.members.length, nSeams = S.assembly.seams.length;
       for (let k = soloLen - 1; k >= 0; k--) removeSeamMember(soloId, 0);
       assert('seam: emptying a seam removes it', S.assembly.seams.length === nSeams - 1 && !S.assembly.seams.some(s => s.id === soloId));
+
+      // Step 5 — Tier-1 length-mismatch hint + Select-tool touchpoint
+      const spine = S.assembly.seams.find(s => s.name === 'spine');   // members = rect edges 0 (100mm) + 3 (80mm)
+      assert('seam: length mismatch detected (100 vs 80mm)', seamLengthIssues(spine).length >= 1, `issues=${seamLengthIssues(spine).length}`);
+      goToSeam(spine.id);
+      assert('seam: goToSeam jumps to the Seam tool + selects it', S.tool === 'seam' && S.activeSeam === spine.id);
+      renderContent();
+      assert('seam: editor shows the length-mismatch warning', document.getElementById('seam-editor').innerHTML.includes('Length mismatch'));
+      // equal-length edges → no warning (rect edges 1 + 3 are both 80mm)
+      S.assembly.seams = []; S._seamMap = new Map(); S.activeSeam = null;
+      S.seamSel = [{ id: rectId, edge: 1 }, { id: rectId, edge: 3 }];
+      createSeamFromSelection();
+      assert('seam: equal-length edges → no mismatch', seamLengthIssues(S.assembly.seams[0]).length === 0);
+      // Select-tool touchpoint: a committed edge surfaces a "Part of seam" jump
+      setTool('select');
+      S.selId = rectId; S.selEdge = { id: rectId, edge: 1 };
+      updatePropsPanel();
+      const sm = document.getElementById('seam-membership');
+      assert('seam: select-tool shows seam membership', sm.style.display !== 'none' && sm.innerHTML.includes('Part of seam'));
+      S.selEdge = { id: rectId, edge: 0 };   // a free edge → no membership
+      updatePropsPanel();
+      assert('seam: free edge hides membership', document.getElementById('seam-membership').style.display === 'none');
     },
 
     // ── zoom-fit bounding box correctness ──

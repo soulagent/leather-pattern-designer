@@ -246,6 +246,28 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.2 — 2026-06-08
+
+### Seam problem hints + Select-tool touchpoint (Step 5 of 6)
+Completes Steps 1–5 of the seam plan (only **folds authoring** remains deferred).
+
+- **Length-mismatch hint** — `seamLengthIssues(seam)` flags any member of a 2+-edge join whose edge
+  length (`edgeLength`: straight for rects, sampled cubic for paths) is more than **`SEAM_LEN_TOL`
+  (1.5 mm)** shorter than the longest member. Surfaced three ways: a **⚠ red strip** in the seam
+  editor listing the offending edges + their lengths, **red member rows**, and a **dashed-red overlay**
+  on those edges on the canvas (`class="seam-aid"` → still stripped from print/export).
+- **Scope decision** — this is the *only* Tier-1 check done in the editor, on purpose: the gap/orphan
+  "do the edges actually meet" test needs the pieces **positioned**, and the flat 2D cut layout never
+  co-locates them (you draw pieces apart for cutting). So edge-meeting/stacking checks belong to the 3D
+  app, not here. (Logged with the 3D auto-stacking TODO — render pieces stacked from seam attachments +
+  layer order so the user doesn't pre-overlap patterns.)
+- **Select-tool touchpoint** — selecting an edge that belongs to a seam shows a **"Part of seam «name»
+  →"** button in the Stitching panel (`goToSeam` → switches to the Seam tool + selects that seam);
+  free edges hide it.
+- `seam` smoke 37 → **43**; full suite **441/441**. Built **ochre-bittern-V13**. Schema **v15** unchanged.
+
+---
+
 ## v0.8.1 — 2026-06-08
 
 ### Seam authoring — Assembly panel + per-seam editor (Steps 3–4 of 6)
