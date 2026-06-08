@@ -261,11 +261,132 @@ The 3D app **never writes** `.lpd` — it consumes `assembly` read-only.
    `S.assembly`, call `validateSeams()`.
 2. `S.assembly` state + derived edge→seam map; `validateSeams()` wired into the mutation paths in §7.
 3. Optional `sh.thickness` read/write; leave `normShape()` permissive.
-4. Seam-tagging UI (#9) — extend the existing per-edge panel: assign/clear a seam name, pick `type`,
-   list members; multi-select two+ edges → "Create seam".
+4. Seam-tagging UI (#9) — **designed in §11**: a dedicated Seam tool (key `S`) for multi-edge picking
+   across shapes + an Assembly panel (seam list + per-seam editor). Reuses the edge hit-test, the
+   `.p-sec` panel idiom, `kbActivate`, and `pushHist` (so undo covers seams).
 5. Smoke: round-trip assert + a `seams` feature (validate prunes stale refs; N-way group intact;
    length-mismatch warning fires).
 6. Mirror the edge-ref contract note into the 3D app's CONTEXT.md so both stay in lockstep.
+
+---
+
+## 11. Seam-tagging UI — Pattern Designer authoring (design, #9)
+
+How the user *creates* the §4 data. Design only; reuses existing primitives wherever possible.
+
+### 11.1 The core gap
+
+Today edge selection is **single-edge, single-shape**: clicking an edge of the selected shape sets
+`S.selEdge = {id, edge}` and the Stitching panel shows "Stitch edge N of M" (`#edge-stitch-row` →
+`toggleEdgeStitch`). A seam needs **2+ edges, often across different shapes**, grouped under one name.
+So authoring needs (a) **multi-edge selection across shapes** and (b) a **panel to name/type/manage**
+the groups. Both are additive — no existing interaction changes.
+
+### 11.2 Interaction model — a dedicated **Seam tool** (key `S`)
+
+Slots into the existing tool model (Select V · Rotate R · Artboard A · Rect B · Pen P · Text T; `S`
+and `M` are free). Rationale: a mode keeps additive edge-picking from overloading Select's click, and
+matches how Rotate/Artboard already work. Toolbar button + `case 's'` in the key handler.
+
+In the Seam tool:
+- **Every shape's edges become hoverable/clickable** (not just the selected shape's) — reuse the
+  existing edge hit-test + `hoverEdge` highlight + `edgePathD`. Circles (0 edges) and hidden/locked
+  shapes are inert.
+- **Click an edge → toggle it into the active selection** `S.seamSel` (a *list* of `{id, edge}`,
+  the multi-edge analogue of `S.selEdge`). Click again to remove. Picked edges draw in the **pending
+  colour** (amber) with a small index badge.
+- **Enter / "Create seam"** groups the pending edges into a new `assembly.seams[]` entry with an
+  auto-suggested editable name ("seam 1", or smart "spine"/"gusset" later) and `type:"stitch"` default.
+- **Esc** clears the pending selection; **click a member of an existing seam** selects that seam for
+  editing (and loads its members as the active selection).
+- Clicking an edge already in another seam offers to move/add it (an edge may belong to **one** seam at
+  a time in v15 — keep it simple; multi-seam edges deferred).
+
+### 11.3 The **Assembly panel** (new collapsible props section)
+
+A new `.p-sec` "Assembly" (LPD-style `.p-hd`/`.p-sec-body`, collapsible, a11y `role=button` header to
+match the v0.7.24 pass), shown when the Seam tool is active or any seam exists. Two parts:
+
+**A. Seam list** — one row per seam: a **colour chip** (each seam gets a stable colour), the editable
+**name**, a **type badge** (✄ stitch / ⟋ fold / ● glue), and a **member count**. Rows are focusable
+`role=button` controls; hovering/selecting a row **pulses its member edges** on the canvas. Trailing
+**⊘ delete**. A **"＋ New seam from selection"** button (enabled when `S.seamSel` has ≥1 edge).
+
+**B. Selected-seam editor** (shown when a seam row is active):
+- **Name** text field (unique within the doc; dupes auto-suffixed on commit).
+- **Type** dropdown — `stitch | fold | glue`.
+- **Order** number (assembly step; blank = unordered) and **Allowance** mm (defaults to `defMargin`).
+- **Members** list — each `Shape «name» · edge N`, with a **remove** (✕) and a **locate** (◎ → select
+  that shape + flash the edge). An **"＋ Add edges"** affordance re-enters pick mode appending to this
+  seam.
+- A live **warning strip** when the editor can already tell something's off (see 11.5).
+
+```
+ASSEMBLY ─────────────────────────── ▾
+ ● spine        ✄ stitch      3 edges  ⊘
+ ● pocket-trim  ✄ stitch      1 edge   ⊘
+ ＋ New seam from selection
+
+ ── spine ───────────────────────────
+ Name      [ spine            ]
+ Type      [ Stitch        ▾ ]
+ Order [ 1 ]   Allowance [ 4 ] mm
+ Members
+   ◎  Back · edge 4        ✕
+   ◎  Front pocket · edge 4 ✕
+   ◎  Inner pocket · edge 4 ✕
+   ＋ Add edges
+ ⚠ Front pocket edge is 45mm vs Back 70mm — check overlap
+```
+
+### 11.4 Visual language on the canvas
+
+- Each seam = a **stable colour** (hashed from its id; distinct from the cyan edge-hover and the
+  stitch teal). Member edges are stroked in that colour with the **seam name** at the edge midpoint
+  (screen-only, hidden in print/export — like the existing on-shape labels).
+- N-way seams read naturally: three edges in the same colour + same label = one spine.
+- **Pending** picks (pre-create) are amber with index badges. **Active** seam (being edited) is
+  emphasised; others dim slightly.
+- Print/SVG/PNG export **never** show seam overlays (assembly is screen-only metadata).
+
+### 11.5 In-editor problem hints (cheap subset of §7)
+
+The editor has the geometry, so it can surface the *cheap* checks immediately (the full fold/twist
+analysis stays 3D-side): **length mismatch** (member edge arc-lengths differ beyond tol) and
+**orphan** (a member whose endpoints meet no sibling's). Shown as a non-blocking ⚠ strip in the seam
+editor + a dashed-red tint on the offending edge. This is the editor's slice of "preview what could go
+wrong," available without the 3D app open.
+
+### 11.6 Folds authoring (sketch — sequence after seams)
+
+A fold is interior line geometry, not an edge, so it needs a small **fold sub-mode** of the Seam tool
+(or a toggle): click two points (grid/anchor-snappable) to drop a crease line into `assembly.folds[]`,
+then set its **angle** (mountain +/valley −) in the seam editor. Lower priority than edge-seams;
+designed here only enough to reserve the interaction. Creases render as dashed lines in the seam
+colour, screen-only.
+
+### 11.7 Select-tool touchpoint
+
+So users discover seams without switching tools: when a single edge is selected in **Select** and it
+belongs to a seam, the existing edge row gains a one-line "Part of seam «spine» ▸" link that activates
+the Seam tool + that seam. Minimal; keeps Select uncluttered.
+
+### 11.8 State + reuse summary (for when we build it)
+
+- New transient state: `S.seamSel` (list of `{id,edge}` being picked), `S.activeSeam` (id under edit).
+  `S.assembly` is the persisted model (§4); seam create/edit/delete go through `pushHist()` like any
+  mutation, so **undo/redo covers seams** for free.
+- Reuse: edge hit-test, `hoverEdge`, `edgePathD`, the `.p-sec`/`.p-hd`/`.p-pair`/`.p-field` panel
+  idiom, `kbActivate` for the focusable rows, `flash()` for create/prune feedback, themed
+  `confirmModal` for destructive deletes.
+- Keyboard/a11y: tool key `S`; Enter = create, Esc = clear; panel rows + chips are real `role=button`
+  controls with the global focus ring (consistent with the recent a11y passes in both apps).
+- Edge cases: circles can't be picked (0 edges); hidden/locked shapes inert; a 1-member seam is a
+  valid **edge finish** (badge distinguishes it from a join); deleting a shape prunes its members via
+  `validateSeams()` with a flash.
+
+_This is UI design only — no code this pass. Next design task: #10, how Leather Studio 3D consumes
+this to fold/preview + flag problems._
 
 ---
 
