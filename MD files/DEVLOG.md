@@ -20,6 +20,12 @@ Remaining after the v0.7.20 accessibility/UX pass:
   reference `--panel`/`--raised`/`--border`/`--canvas`/`--bg`/`--dialog`/`--hover`; redundant light
   overrides dropped. Only the token defs (and the intentional dialog-only `#2f2f52`) remain as hexes.
 - [ ] **Re-sync the `ui-language` skill / STYLE_GUIDE** if/when the user fine-tunes UI elements.
+- [ ] **Visible update-check UX** (user feedback 2026-06-08). The launch update check is silent;
+  the user prefers a brief **"Checking for updates…" popup** that **auto-closes if already current**
+  and only **prompts when an update exists**. Apply to both the launch check and *Help ▸ Check for
+  Updates* (give the manual path an in-progress indicator too). _Same change wanted in Leather Studio
+  3D — see its CONTEXT.md backlog; the 3D app also has a bug where the prompt only shows on `.lpd`
+  open, not on the home screen._
 
 _(Larger separate efforts are tracked in their own memories: the 3D companion app and the C++
 migration — see the project memory.)_
