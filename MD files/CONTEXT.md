@@ -467,6 +467,13 @@ fallback (open it in a browser). Don't move app logic into the desktop layer; ke
     layer, with the tab bar switching the active document. Pairs with the desktop
     build (a real app window wants tabs). Plan as its own milestone — it touches
     save/load, autosave, history, and render. **(requested — desktop-era feature)**
+14. **"View in Leather Studio 3D" / Export-to-3D button** — hand the current `.lpd` to the 3D
+    companion and open it; reuses the existing `open-lpd`/`take_launch_file` launch contract. Simpler
+    "Export to 3D" (write a copy, don't launch) first. **(requested — desktop-era; not started)**
+15. **Live preview on save** — keep the 3D viewer open and auto-refresh it when the `.lpd` is saved
+    (file-watch or IPC). Sequence after #14. **(requested — desktop-era; not started)**
+    _Both detailed in DEVLOG → Roadmap → "LPD ↔ Leather Studio 3D bridge"; the seam/assembly model
+    they build toward is designed in `MD files/SEAM-MODEL.md` (schema v15)._
 
 ### Desktop build (Tauri) — see `desktop/README.md`
 D1. ✅ **Native save / load DONE v0.7.12.** Was: the packaged Tauri/WebView2 window dropped save/load to

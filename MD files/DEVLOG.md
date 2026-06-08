@@ -57,6 +57,35 @@ sibling assembly file, plus seam-tagging UI in *this* app). Goals 1/2 (render/ca
 risk; the 2D→3D fold is the hard, research-adjacent part — phase it, start with a flat-panel 3D viewer
 MVP and a parametric catalogue of common goods before attempting general free-form folding.
 
+**Update 2026-06-08 — the flat-panel viewer exists and the seam model is now designed.** Leather
+Studio 3D shipped its Phase-1 viewer (loads `.lpd`, renders pieces as flat textured panels with
+stitching, camera/lighting, themes; current v0.0.4). The **seam/assembly data model** (the crux above)
+has a written design — **`MD files/SEAM-MODEL.md`** — a proposed save-schema **v15** that adds a
+top-level `assembly` object (named seam groups of edges → handles N-way stacked seams; `type`
+stitch/fold/glue; `folds[]`; per-piece `thickness`), built on the existing `{shape:id, edge:int}`
+primitive. Design only — not yet implemented. Building it (authoring UI here + the fold/consume path
+in the 3D app) is the next real Phase-2 step.
+
+### LPD ↔ Leather Studio 3D bridge (future, requested — NOT started)
+Two convenience features to connect this app with the 3D companion, logged 2026-06-08. Both are
+**desktop-era** (rely on the Tauri launch path), neither started:
+
+- **"View in Leather Studio 3D" / Export-to-3D button.** A button/menu item in this app that hands the
+  current `.lpd` to the 3D viewer and opens it immediately. Reuses the **existing `open-lpd` launch
+  contract** the 3D app already implements (single-instance + `take_launch_file`/`open-lpd` event):
+  write the doc (native save or a temp file), then launch the 3D exe with that path (or `emit` to an
+  already-running instance). The 3D app frames itself as *a preview of what could go wrong*, so a
+  one-click "see it assembled" from the editor is the natural bridge. A plain **"Export to 3D"**
+  (write a copy, don't launch) is the simpler first cut. _Gotcha: needs the 3D app installed /
+  locatable; degrade gracefully (e.g. reveal the saved file) in the browser build._
+- **Live preview on save.** Keep the 3D viewer open beside the editor and have it **auto-refresh when
+  the `.lpd` is saved** — file-watch on the path (3D side) or an IPC ping (editor → 3D). Turns the
+  pair into an author-here/see-there loop. Larger than the button; depends on both apps agreeing on a
+  signal. Sequence it *after* the one-shot button.
+
+_(Both consume `.lpd` read-only on the 3D side — the editor stays the sole writer. Cross-ref:
+[[companion-3d-app]] memory and `Leather Studio 3D` repo.)_
+
 ### C++ migration plan (vision — NOT started; comprehensive steps + caveats)
 The user's long-term aim: move the app off HTML/CSS/JS (+ Tauri/WebView2) to a **native C++** codebase
 for more control, performance, and a **shared core with the [[companion-3d-app]]** (which will be
