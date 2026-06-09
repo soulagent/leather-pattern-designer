@@ -268,6 +268,36 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.8 — 2026-06-09
+
+### Partial seams authored in mm, not arbitrary % (assembly-schema v4; paired with 3D v0.0.11)
+
+Partial/unequal seam joins were authored as **Start % / End %** sub-spans (`t0`/`t1` fractions of an
+edge) — arbitrary and invisible to the user, who had to hand-compute `12/70 ≈ 0.17` to mean "12 mm
+from the top." Replaced with a **mm** model:
+
+- **Data model.** A member stores `offset` (mm from a reference end `from: start|end`); the join
+  **length auto-derives = the shortest ("mating") member edge**. New `seamRunLengthMM` / `memberSpan`
+  / `edgeEndLabels` resolve a member to its `{t0,t1}` span for every existing consumer (canvas band,
+  shared-stitch layout, export, 3D). **Legacy `t0`/`t1` files load unchanged** (used only when no
+  `offset` is present). Assembly-schema **v3 → v4**; `normMember` persists `offset`/`from` (or carries
+  legacy fractions through). New round-trip asserts.
+- **Authoring UI.** The per-member partial controls are now a **"Measure from"** picker — the edge's
+  two ends labelled by direction (Top/Bottom or Left/Right, derived from the edge geometry) — plus an
+  **Offset (mm)** field, with the auto **Join … mm** length shown read-only. `setMemberOffset` /
+  `setMemberFrom` replace `setMemberSpan` (and migrate a legacy member to mm on first edit).
+- **Canvas preview.** The bold seam band now spans the **true mm length** anchored at the chosen
+  reference end (so a 12 mm gusset edge previews as a 12 mm cap on the 70 mm side — see
+  `EdgeIntention.png`), and the anchor dot marks each member's reference end.
+- New semantics for a partial member with **no** offset: it joins its first *run* mm (the mating
+  length), not its whole edge — the intended true-length behaviour.
+
+`seam` smoke gains 5 `U6mm` asserts (auto run = mating edge, offset slides the run, from=end). App
+smoke **487 → 492**. Diagnosis note: this — not the 3D "flipped render" theory — was the real cause of
+the card-holder's mis-aligned T-pocket; the gusset just needed a clear mm offset from the top.
+
+---
+
 ## v0.8.7 — 2026-06-09
 
 ### Stitch fix — shared-stitch holes respect the margin (paired with 3D v0.0.10)

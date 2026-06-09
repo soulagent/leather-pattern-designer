@@ -1,5 +1,5 @@
 # Leather Pattern Designer — Session Context
-_Last updated: 2026-06-09 · Current version: v0.8.7 · Save format v15 (.lpd; assembly-schema v3 — shared stitch across stacked pieces)_
+_Last updated: 2026-06-09 · Current version: v0.8.8 · Save format v15 (.lpd; assembly-schema v4 — mm partial seams + shared stitch across stacked pieces)_
 
 ---
 

@@ -55,6 +55,23 @@ PASS/FAIL summary. No terminal or Claude needed.
 
 To view the app: open `index.html` directly in a browser (no server needed).
 
+## Releasing — the `shipit` command
+
+When the user types **`shipit`** (a bare word — also the legacy `/build`), run the **entire** ship
+flow **fully automatically, with NO confirmation**: auto-bump → smoke → `cargo tauri build` → commit →
+push → GitHub release. The user has a **standing authorization** (2026-06-09) to publish public
+releases on this word; do not pause for a version question. **The only hard stop is a failing smoke or
+build** — report it and don't release red.
+
+- **Auto-detect the app(s):** `shipit` ships *every* repo with functional code changes. The two apps
+  are separate repos — `Leather Stuff` (this one) and `../Leather Studio 3D`. Run `git status` in each;
+  ship those with code changes (not doc-only), skip the rest. Independent version lines (LPD 0.x, 3D
+  0.0.x — never unified).
+- **Auto-bump rule (no double-bump):** if `APP_VERSION` already moved past the latest release this
+  session, ship it as-is; otherwise bump the patch and write the DEVLOG/CONTEXT/SHORTCUTS entries.
+- Full per-repo procedure (BUILD_TAG mint, signing env, `gh workflow run release.yml`, etc.) lives in
+  the `build-workflow` memory.
+
 ## How the tests work (important constraints)
 
 Smoke tests exercise the **real** app logic — there is no mocked copy. `run-smoke.ps1`

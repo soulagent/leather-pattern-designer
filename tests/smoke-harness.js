@@ -136,7 +136,11 @@ window.__SMOKE__ = function (spec) {
       assert('round-trip → per-piece thickness preserved', S.shapes[0].thickness === 1.6, `thickness=${S.shapes[0].thickness}`);
       assert('seamForEdge → derived map resolves a member', seamForEdge(S.shapes[0].id, 0) === S.assembly.seams[0], 'map miss');
       assert('seamForEdge → pruned/absent edge = null', seamForEdge(S.shapes[1].id, 0) === null, 'circle edge unexpectedly mapped');
-      assert('v14 file (no assembly) → empty assembly default', normAssembly(undefined).seams.length === 0 && normAssembly(undefined).version === 3);
+      assert('v14 file (no assembly) → empty assembly default', normAssembly(undefined).seams.length === 0 && normAssembly(undefined).version === 4);
+      // assembly-schema v4: mm partial join (offset + reference end) survives normalise/round-trip
+      const mmM = normMember({ shape: 8, edge: 1, offset: 12, from: 'end' });
+      assert('round-trip → mm offset/from preserved', mmM.offset === 12 && mmM.from === 'end', JSON.stringify(mmM));
+      assert('round-trip → mm member drops legacy t0/t1', mmM.t0 === undefined && mmM.t1 === undefined, JSON.stringify(mmM));
       assert('round-trip → settings.defSpacing preserved', saved.settings.defSpacing === S.defSpacing, `${saved.settings.defSpacing} vs ${S.defSpacing}`);
       assert('round-trip → settings.stitchStyle preserved', S.stitchStyle === 'french', `stitchStyle=${S.stitchStyle}`);
       assert('round-trip → shape label preserved', S.shapes[2].label === 'Gusset' && S.shapes[2].showLabel === true, `label=${S.shapes[2].label}, show=${S.shapes[2].showLabel}`);
@@ -1535,19 +1539,31 @@ window.__SMOKE__ = function (spec) {
       // partial overlap: a sub-span member still shares the layout (anchored)
       reset();
       S.assembly.seams = []; S._seamMap = new Map(); S.activeSeam = null;
-      addShape({ type: 'rect', x: 0, y: 0, w: 100, h: 80 });
-      const u7p = S.shapes[0].id;
-      S.seamSel = [{ id: u7p, edge: 0 }, { id: u7p, edge: 2 }];
+      // mm partial join: a 100mm edge mated to a 50mm edge → run auto-derives to the 50mm mating edge.
+      addShape({ type: 'rect', x: 0, y: 0, w: 100, h: 80 });   // long member: top edge = 100mm
+      addShape({ type: 'rect', x: 0, y: 200, w: 50, h: 80 });  // mating member: top edge = 50mm
+      const u7p = S.shapes[0].id, u7q = S.shapes[1].id;
+      S.seamSel = [{ id: u7p, edge: 0 }, { id: u7q, edge: 0 }];
       createSeamFromSelection();
       const ps = S.assembly.seams[0];
       setSeamFit(ps.id, 'partial');
-      setMemberSpan(ps.id, 0, 't1', '50');   // member 0 sews only first 50%
-      setMemberSpan(ps.id, 1, 't1', '50');
       setSeamShared(ps.id, true);
-      const pl = seamStitchLayout(S.assembly.seams.find(s => s.id === ps.id));
-      const pa = pl.get(u7p + ':0');
-      assert('U7: partial member count from sub-span (~50mm)', pa.length === Math.round(50 / S.assembly.seams.find(s => s.id === ps.id).stitch.spacing) + 1, `n=${pa.length}`);
-      assert('U7: partial holes stay within the sub-span', pa.every(p => p.x <= 50.001), 'a hole ran past the 50% span');
+      const seamOf = () => S.assembly.seams.find(s => s.id === ps.id);
+      const sp = seamOf().stitch.spacing;
+      // offset 0 from start → the 100mm member sews its first 50mm (= mating edge); holes stay <= 50mm
+      let pl = seamStitchLayout(seamOf());
+      let pa = pl.get(u7p + ':0');
+      assert('U6mm: run auto = mating (50mm) edge', pa.length === Math.round(50 / sp) + 1, `n=${pa.length}`);
+      assert('U6mm: offset 0 → holes in the first 50mm', pa.every(p => p.x <= 50.001), 'a hole ran past the 50mm run');
+      // offset 25mm from start → the 50mm run slides to x in [25,75]
+      setMemberOffset(ps.id, 0, '25');
+      pl = seamStitchLayout(seamOf()); pa = pl.get(u7p + ':0');
+      assert('U6mm: offset 25 shifts the run to [25,75]', pa.every(p => p.x >= 24.999 && p.x <= 75.001), `xs=${pa.map(p=>p.x.toFixed(1))}`);
+      assert('U6mm: member stores offset in mm', seamOf().members[0].offset === 25, JSON.stringify(seamOf().members[0]));
+      // measure-from the far end → run sits in the LAST 50mm, x in [50,100]
+      setMemberOffset(ps.id, 0, '0'); setMemberFrom(ps.id, 0, 'end');
+      pl = seamStitchLayout(seamOf()); pa = pl.get(u7p + ':0');
+      assert('U6mm: from=end → run in the last 50mm', pa.every(p => p.x >= 49.999 && p.x <= 100.001), `xs=${pa.map(p=>p.x.toFixed(1))}`);
 
       // ── Folds (v15): crease authoring via the Seam tool's fold sub-mode ──
       setTool('seam'); setFoldMode(true);

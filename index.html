@@ -700,7 +700,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.7</div>
+  <div id="app-title">Leather Pattern Designer v0.8.8</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -1144,8 +1144,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.7';
-const BUILD_TAG = 'teal-stork-V18';
+const APP_VERSION = 'v0.8.8';
+const BUILD_TAG = 'russet-plover-V19';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -2203,6 +2203,34 @@ function edgeLength(sh,e){
   }
   return 0;
 }
+// U6-mm: a PARTIAL seam joins its members over one common run. The run LENGTH auto-derives = the
+// shortest ("mating") member edge. Each member places that run on its own (longer) edge measured in
+// mm by `offset` from a reference end (`from`: 'start'|'end' of the edge's natural travel). This is
+// clearer than the old arbitrary t0/t1 fractions. Legacy files (t0/t1, no mm field) load unchanged.
+function seamRunLengthMM(seam){
+  let L=Infinity;
+  for(const m of (seam.members||[])){ const sh=getShape(m.shape); if(!sh) continue; const e=edgeLength(sh,m.edge); if(e>1e-6) L=Math.min(L,e); }
+  return isFinite(L)?L:0;
+}
+// Resolve a member's joined sub-span to {t0,t1} fractions of ITS edge (the form every downstream
+// consumer — canvas band, shared-stitch mapping, .lpd export, 3D — already speaks).
+function memberSpan(sh, m, seam){
+  if(!(seam && seam.fit==='partial')) return { t0:0, t1:1 };
+  if(m.offset==null && (m.t0!=null || m.t1!=null)) return { t0:m.t0??0, t1:m.t1??1 };  // legacy fraction span
+  const edgeLen = edgeLength(sh, m.edge) || 1;
+  const runMM = Math.min(seamRunLengthMM(seam), edgeLen);
+  const off = Math.max(0, Math.min(edgeLen - runMM, m.offset || 0));
+  if(m.from==='end'){ const t1 = 1 - off/edgeLen; return { t0:Math.max(0, t1 - runMM/edgeLen), t1 }; }
+  const t0 = off/edgeLen; return { t0, t1:Math.min(1, t0 + runMM/edgeLen) };
+}
+// Which natural end of an edge reads as "Top"/"Bottom"/"Left"/"Right" (for the mm offset UI label).
+// Compares the edge's start vs end point in local coords: more vertical → Top/Bottom, else Left/Right.
+function edgeEndLabels(sh, e){
+  const a=edgePointAt(sh,e,0), b=edgePointAt(sh,e,1);
+  if(Math.abs(b.y-a.y) >= Math.abs(b.x-a.x))
+    return b.y>a.y ? { start:'Top', end:'Bottom' } : { start:'Bottom', end:'Top' };
+  return b.x>a.x ? { start:'Left', end:'Right' } : { start:'Right', end:'Left' };
+}
 function edgeCursor(sh,e){
   if(sh && sh.type==='rect'){
     const N=[[0,-1],[1,0],[0,1],[-1,0]][e]||[0,-1]; // outward normal of edge top/right/bottom/left
@@ -2411,13 +2439,13 @@ function seamStitchLayout(seam){
   if(ms.length<2) return null;
   const sp = (seam.stitch.spacing>0 ? seam.stitch.spacing : (S.defSpacing||3.38));
   const mg = (seam.stitch.margin>0 ? seam.stitch.margin : (S.defMargin||3));
-  const span = (sh,m)=>{ const t0=m.t0==null?0:m.t0, t1=m.t1==null?1:m.t1; return edgeLength(sh,m.edge)*Math.abs(t1-t0); };
+  const span = (sh,m)=>{ const {t0,t1}=memberSpan(sh,m,seam); return edgeLength(sh,m.edge)*Math.abs(t1-t0); };
   const Lref = span(ms[0].sh, ms[0].m);
   const N = Math.max(1, Math.round(Lref/sp));
   const anchorEnd = seam.anchor==='end';
   const out = new Map();
   for(const {m,sh} of ms){
-    const t0=m.t0==null?0:m.t0, t1=m.t1==null?1:m.t1, pts=[];
+    const {t0,t1}=memberSpan(sh,m,seam), pts=[];
     // Inward normal for this edge so holes sit the stitch margin IN from the edge (not on it).
     const A=edgePointAt(sh,m.edge,0), B=edgePointAt(sh,m.edge,1);
     let ex=B.x-A.x, ey=B.y-A.y; const eL=Math.hypot(ex,ey)||1; ex/=eL; ey/=eL;
@@ -3188,11 +3216,11 @@ function renderContent() {
         // Partial seam: draw the joined sub-span as a BOLD band offset to the edge's interior side,
         // so the % span (panel) is visible on the canvas. An anchor dot marks the end spans align from.
         if(seam.fit==='partial'){
-          const t0=m.t0==null?0:m.t0, t1=m.t1==null?1:m.t1, off=5.5/(S.zoom*PX);
+          const {t0,t1}=memberSpan(s,m,seam), off=5.5/(S.zoom*PX);
           const bd=edgeBandD(s,m.edge,t0,t1,off);
           g+=`<path class="seam-aid" d="${bd}" fill="none" stroke="${halo}" stroke-opacity="0.85" stroke-width="${8.5/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
           g+=`<path class="seam-aid" d="${bd}" fill="none" stroke="${col}" stroke-width="${5/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
-          const at=seam.anchor==='end'?1:0, ap=edgePointAt(s,m.edge,at);
+          const at=(m.offset!=null ? m.from==='end' : seam.anchor==='end')?1:0, ap=edgePointAt(s,m.edge,at);
           const e0=edgePointAt(s,m.edge,Math.max(0,at-0.02)), e1=edgePointAt(s,m.edge,Math.min(1,at+0.02));
           let mdx=e1.x-e0.x, mdy=e1.y-e0.y; const mL=Math.hypot(mdx,mdy)||1; mdx/=mL; mdy/=mL;
           const mx=ap.x+(-mdy)*off, my=ap.y+mdx*off;
@@ -4660,12 +4688,16 @@ function seamEditorHTML(seam){
     h+=`<div class="lay-row"><span class="lay-name"${w?' style="color:#e74c3c"':''} title="${nm}">${w?'⚠ ':''}${nm} · edge ${m.edge+1}</span>`
       +`<button class="lay-arr" title="Find on canvas" onclick="locateSeamMember(${m.shape},${m.edge})">◎</button>`
       +`<button class="lay-arr" title="Remove from seam" onclick="removeSeamMember(${seam.id},${i})">✕</button></div>`;
-    if(partial){
-      const t0=Math.round((m.t0??0)*100), t1=Math.round((m.t1??1)*100);
+    if(partial && sh){
+      const lab=edgeEndLabels(sh,m.edge), from=(m.from==='end')?'end':'start';
+      const off=(m.offset!=null) ? +(m.offset).toFixed(1)
+              : (m.t0!=null||m.t1!=null) ? +((from==='end'?(1-(m.t1??1)):(m.t0??0))*edgeLength(sh,m.edge)).toFixed(1) : 0;
+      const runMM=memberSpan(sh,m,seam); const lenMM=(edgeLength(sh,m.edge)*Math.abs(runMM.t1-runMM.t0)).toFixed(1);
       h+=`<div class="p-pair" style="margin:-2px 0 6px 4px">`
-        +`<div class="p-field"><span class="p-fl-w">Start %</span><input class="p-inp" type="number" min="0" max="100" step="1" value="${t0}" title="Span start (% along edge ${m.edge+1})" onchange="setMemberSpan(${seam.id},${i},'t0',this.value)"></div>`
-        +`<div class="p-field"><span class="p-fl-w">End %</span><input class="p-inp" type="number" min="0" max="100" step="1" value="${t1}" title="Span end (% along edge ${m.edge+1})" onchange="setMemberSpan(${seam.id},${i},'t1',this.value)"></div>`
-        +`</div>`;
+        +`<div class="p-field"><span class="p-fl-w">From</span><select class="p-sel" title="End of edge ${m.edge+1} to measure the offset from" onchange="setMemberFrom(${seam.id},${i},this.value)"><option value="start"${from==='start'?' selected':''}>${lab.start}</option><option value="end"${from==='end'?' selected':''}>${lab.end}</option></select></div>`
+        +`<div class="p-field"><span class="p-fl-w">Offset mm</span><input class="p-inp" type="number" min="0" step="0.5" value="${off}" title="Distance (mm) from the chosen end to where the ${lenMM}mm join starts" onchange="setMemberOffset(${seam.id},${i},this.value)"></div>`
+        +`</div>`
+        +`<div class="p-note" style="margin:-4px 0 6px 4px;opacity:.7">Join ${lenMM} mm (auto — mating edge)</div>`;
     }
   });
   if(issues.length){
@@ -4709,7 +4741,7 @@ function setSeamFit(id, fit){
   if(cur===fit) return;
   pushHist();
   if(fit==='partial'){ s.fit='partial'; if(s.anchor!=='end') s.anchor='start'; }
-  else { delete s.fit; delete s.anchor; for(const m of s.members){ delete m.t0; delete m.t1; } }  // full → clear spans
+  else { delete s.fit; delete s.anchor; for(const m of s.members){ delete m.t0; delete m.t1; delete m.offset; delete m.from; } }  // full → clear spans
   renderContent();
 }
 function setSeamAnchor(id, anchor){
@@ -4734,18 +4766,28 @@ function setSeamStitchSpacing(id, raw){
   if(s.stitch.spacing===v) return;
   pushHist(); s.stitch.spacing=v; renderContent();
 }
-// Set one end of a member's sub-span (which='t0'|'t1', raw is a 0..100 percent). Stored only when
-// it's a real partial span; a full 0..100 clears the fields (back to whole-edge).
-function setMemberSpan(id, idx, which, raw){
+// mm partial join: set a member's offset (mm from its reference end). Migrates a legacy t0/t1 member
+// to the mm model. Join length stays auto (= mating edge). 0 with start-anchor clears the fields.
+function setMemberOffset(id, idx, raw){
   const s=S.assembly.seams.find(x=>x.id===id); if(!s) return;
-  const m=s.members[idx]; if(!m) return;
+  const m=s.members[idx], sh=getShape(m&&m.shape); if(!m||!sh) return;
   let v=Number(raw); if(!isFinite(v)) return;
-  v=Math.max(0,Math.min(100,v))/100;
-  let t0=m.t0??0, t1=m.t1??1;
-  if(which==='t0') t0=v; else t1=v;
-  if(t0>t1){ const tmp=t0; t0=t1; t1=tmp; }
+  const edgeLen=edgeLength(sh,m.edge), runMM=Math.min(seamRunLengthMM(s),edgeLen);
+  v=Math.max(0, Math.min(edgeLen-runMM, v));
   pushHist();
-  if(t0>1e-4 || t1<1-1e-4){ m.t0=t0; m.t1=t1; } else { delete m.t0; delete m.t1; }
+  delete m.t0; delete m.t1;                          // leave the legacy model
+  if(v>1e-4) m.offset=v; else delete m.offset;
+  renderContent();
+}
+function setMemberFrom(id, idx, from){
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s) return;
+  const m=s.members[idx], sh=getShape(m&&m.shape); if(!m||!sh) return;
+  from = from==='end' ? 'end' : 'start';
+  // carry the legacy fraction offset over to mm so the run doesn't jump when switching ends
+  if(m.offset==null && (m.t0!=null||m.t1!=null)){ const cur=memberSpan(sh,m,s); m.offset=(from==='end'?(1-cur.t1):cur.t0)*edgeLength(sh,m.edge); delete m.t0; delete m.t1; }
+  pushHist();
+  if(from==='end') m.from='end'; else delete m.from;
+  if(!(m.offset>1e-4)) delete m.offset;
   renderContent();
 }
 // Append the pending edge picks to an existing seam (skipping edges already in a seam).
@@ -5327,17 +5369,21 @@ function normArtboard(a,id){
 // Normalise the assembly block on load (absent in v1-14 files → empty). Coerces members to valid
 // {shape,edge[,reversed]}, types to the allowed set, and keeps ids/names sane. validateSeams() runs
 // afterwards to prune refs whose geometry doesn't exist in this document.
-// Normalise one seam member. v15 carried only {shape,edge[,reversed]}; assembly-schema v2 (U6)
-// adds an optional sub-span t0/t1 (0..1 along the edge by arc length) for PARTIAL joins — stored
-// only when it's a real sub-span (whole-edge 0..1 stays absent for back-compat + clean files).
+// Normalise one seam member. v15 carried only {shape,edge[,reversed]}; assembly-schema v2 (U6) added
+// a sub-span t0/t1 (0..1 fractions). assembly-schema v4 (mm partial joins) replaces that with
+// `offset` (mm from a reference end `from`) + auto length — clearer authoring. Stored only when it's
+// a real partial member. Legacy t0/t1 is preserved on round-trip when no mm field is present.
 function normMember(m){
   if(!m || typeof m.shape!=='number' || typeof m.edge!=='number') return null;
   const out = {shape:m.shape, edge:m.edge};
   if(m.reversed) out.reversed = true;
-  let t0 = (typeof m.t0==='number') ? m.t0 : 0, t1 = (typeof m.t1==='number') ? m.t1 : 1;
-  t0 = Math.max(0,Math.min(1,t0)); t1 = Math.max(0,Math.min(1,t1));
-  if(t0>t1){ const tmp=t0; t0=t1; t1=tmp; }
-  if(t0>1e-4 || t1<1-1e-4){ out.t0=t0; out.t1=t1; }   // only persist a real partial span
+  if(typeof m.offset==='number' && m.offset>1e-4){ out.offset = Math.max(0,m.offset); if(m.from==='end') out.from='end'; }
+  else if(m.from==='end'){ out.from='end'; }                 // reference end even at offset 0
+  else if(m.offset==null && (typeof m.t0==='number' || typeof m.t1==='number')){   // legacy fraction span
+    let t0=(typeof m.t0==='number')?m.t0:0, t1=(typeof m.t1==='number')?m.t1:1;
+    t0=Math.max(0,Math.min(1,t0)); t1=Math.max(0,Math.min(1,t1)); if(t0>t1){const x=t0;t0=t1;t1=x;}
+    if(t0>1e-4 || t1<1-1e-4){ out.t0=t0; out.t1=t1; }
+  }
   return out;
 }
 function normSeam(s,i){
@@ -5366,7 +5412,7 @@ function normSeam(s,i){
   return out;
 }
 function normAssembly(a){
-  if(!a || typeof a!=='object') return {version:3, seams:[], folds:[]};
+  if(!a || typeof a!=='object') return {version:4, seams:[], folds:[]};
   const seams = Array.isArray(a.seams) ? a.seams.map(normSeam).filter(Boolean) : [];
   const folds = Array.isArray(a.folds)
     ? a.folds.filter(f=>f && typeof f.shape==='number' && f.a && f.b)
@@ -5374,7 +5420,7 @@ function normAssembly(a){
           a:{x:+f.a.x||0,y:+f.a.y||0}, b:{x:+f.b.x||0,y:+f.b.y||0},
           angle:(typeof f.angle==='number'?f.angle:0), name:(f.name!=null?String(f.name):'fold '+(i+1))}))
     : [];
-  return {version:Math.max(3, a.version||0), seams, folds};
+  return {version:Math.max(4, a.version||0), seams, folds};
 }
 
 function applyLoadedData(data){
