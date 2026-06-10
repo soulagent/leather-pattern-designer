@@ -1,5 +1,5 @@
 # Leather Pattern Designer — Session Context
-_Last updated: 2026-06-09 · Current version: v0.8.8 · Save format v15 (.lpd; assembly-schema v4 — mm partial seams + shared stitch across stacked pieces)_
+_Last updated: 2026-06-10 · Current version: v0.8.9 · Save format v15 (.lpd; assembly-schema v4 — mm partial seams + shared stitch across stacked pieces)_
 
 ---
 
@@ -241,7 +241,7 @@ Smoke tests run the **real** app logic headlessly — no mocked copy, no npm.
 
 ```powershell
 tests\run-smoke.ps1 -Tier quick                # ~5s,  core+history (13 asserts)
-tests\run-smoke.ps1 -Tier full                 # ~15s, every feature (390 asserts)
+tests\run-smoke.ps1 -Tier full                 # ~15s, every feature (494 asserts)
 tests\run-smoke.ps1 -Feature stitch-rect       # just one feature
 tests\run-smoke.ps1 -Feature "color,snap"      # a comma/space list
 ```
@@ -351,6 +351,7 @@ fallback (open it in a browser). Don't move app logic into the desktop layer; ke
 
 | Version | Key additions |
 |---|---|
+| v0.8.9 | **Shared-seam end holes: one hole per corner.** `seamStitchLayout` now insets the run's END holes by the stitch margin ALONG the edge (same mm on every member → stack parity kept; `N = round((run−2·margin)/spacing)`), so a seam ending at a piece corner lands its end hole exactly on the inset corner. `stitchFor` then drops any independent hole within 0.75mm of a seam hole (the perpendicular edge's corner twin — start hole or far-corner push) — the seam owns the corner. Mirrored in Leather Studio 3D v0.0.13 (`seamStitchSegments3D` trim + `collectStitches` dedupe; `buildAssembly` now carries `stitch.margin` through). `seam` smoke +5 (U7fix); full **494/494**. |
 | v0.8.4 | **Partial / unequal-length seams (U6) — assembly-schema v2.** Members gain an optional `t0`/`t1` sub-span (fractions of arc length; default whole edge); seams gain `fit:"partial"` + `anchor:"start"\|"end"` (intentional unequal join — length-mismatch hint suppressed, mated spans line up from the anchor). `normMember`/`normSeam` persist the new fields (previously stripped). Seam editor: **Join: Full/Partial** dropdown → **Anchor** + per-member **Start%/End%** span fields (`setSeamFit`/`setSeamAnchor`/`setMemberSpan`); `seamLengthIssues` skips partial. No `.lpd` file bump (v15); internal `assembly.version` 1→2. Consumed by Leather Studio 3D v0.0.7 (clip to span, anchored `align2D`, Tier-1/2 skipped for partial). Drag-handle authoring deferred. `saveload` smoke +partial asserts; full **468/468**. |
 | v0.8.3 | **Folds authoring (Step 6) — completes the seam plan.** The Seam tool gains an **Edges / Fold** toggle (Assembly panel). In Fold mode, two clicks on a piece drop a crease into `assembly.folds[]` (`{id,shape,a,b,angle,name}`): 1st click picks the piece (`hitShape`) + start, 2nd commits; rubber-band preview + start dot follow the cursor, **Esc** cancels. Endpoints snap to anchors/corners (`foldSnapLocal`) else grid, stored in the piece's **local frame** (rotate with the shape). `angle` = mountain + / valley − (−180…180), the dihedral the 3D preview bends about. New transient state `S.foldMode`/`S.foldDraft`/`S.activeFold`. Canvas: dashed-violet crease (`class="seam-aid"` → screen-only), all folds in the Seam tool / only the panel-selected one elsewhere (thicker + angle label). Assembly panel gains a **Folds** list + per-fold editor (`renderFoldsList`/`foldEditorHTML`: name, angle, locate ◎, delete ✕). `validateSeams` prunes folds on deleted pieces; all undoable + round-trips (no save bump — folds were already in v15). `seam` smoke 43→**67**; full **465/465**. |
 | v0.8.2 | **Seam problem hints + Select-tool touchpoint (Step 5).** `seamLengthIssues(seam)` flags any member of a multi-edge join whose edge (via `edgeLength`) is >`SEAM_LEN_TOL` (1.5 mm) shorter than the longest → a ⚠ red strip in the seam editor + red member rows + a dashed-red overlay on the offending edges. Deliberately **length-mismatch only**: gap/orphan ("do edges actually meet") needs the pieces positioned, so that check is a 3D-app job (the flat 2D cut layout never co-locates pieces). Select tool: when a selected edge belongs to a seam, the Stitching panel shows a **"Part of seam «name» →"** button (`goToSeam` → Seam tool + selects it); free edges hide it. `seam` smoke 37→43; full **441/441**. | 

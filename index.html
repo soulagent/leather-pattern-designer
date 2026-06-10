@@ -700,7 +700,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.8</div>
+  <div id="app-title">Leather Pattern Designer v0.8.9</div>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -1144,8 +1144,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.8';
-const BUILD_TAG = 'russet-plover-V19';
+const APP_VERSION = 'v0.8.9';
+const BUILD_TAG = 'juniper-kestrel-V20';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -1636,16 +1636,6 @@ function mmToScreen(mx, my) {
 }
 // Escape user-entered text before inlining it into SVG markup.
 function escapeXML(s) { return String(s).replace(/[<>&'"]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&#39;','"':'&quot;'}[c])); }
-
-function getBBox() {
-  if (!S.shapes.length) return {x:0,y:0,w:210,h:297};
-  let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
-  for (const s of S.shapes) {
-    const b=worldAABB(s); // rotation-aware, so fit/print capture the rotated extent
-    x1=Math.min(x1,b.x1); y1=Math.min(y1,b.y1); x2=Math.max(x2,b.x2); y2=Math.max(y2,b.y2);
-  }
-  return {x:x1,y:y1,w:x2-x1,h:y2-y1};
-}
 
 // Combined bounds of shapes + every artboard — used by "Fit All" so empty/extra pages frame too.
 function getFitBox() {
@@ -2441,18 +2431,24 @@ function seamStitchLayout(seam){
   const mg = (seam.stitch.margin>0 ? seam.stitch.margin : (S.defMargin||3));
   const span = (sh,m)=>{ const {t0,t1}=memberSpan(sh,m,seam); return edgeLength(sh,m.edge)*Math.abs(t1-t0); };
   const Lref = span(ms[0].sh, ms[0].m);
-  const N = Math.max(1, Math.round(Lref/sp));
+  // End holes sit the margin IN from the run ends (along the edge) — same rule as the inner-rect
+  // corners of independent stitching, so a seam ending at a piece corner lands exactly on the
+  // inset corner instead of the raw edge end. Same mm inset on every member keeps holes coincident
+  // across the stack. N derives from the inset run, like stitchRect's inner length.
+  const N = Math.max(1, Math.round(Math.max(sp/2, Lref-2*mg)/sp));
   const anchorEnd = seam.anchor==='end';
   const out = new Map();
   for(const {m,sh} of ms){
     const {t0,t1}=memberSpan(sh,m,seam), pts=[];
+    const Lrun=edgeLength(sh,m.edge)*Math.abs(t1-t0)||1;
+    const dIn=(Lrun>2*mg+0.5)?(t1-t0)*(mg/Lrun):0, u0=t0+dIn, u1=t1-dIn;
     // Inward normal for this edge so holes sit the stitch margin IN from the edge (not on it).
     const A=edgePointAt(sh,m.edge,0), B=edgePointAt(sh,m.edge,1);
     let ex=B.x-A.x, ey=B.y-A.y; const eL=Math.hypot(ex,ey)||1; ex/=eL; ey/=eL;
     let nx=-ey, ny=ex; const c=seamShapeCentroid(sh);
     if((c.x-(A.x+B.x)/2)*nx + (c.y-(A.y+B.y)/2)*ny < 0){ nx=-nx; ny=-ny; }
     for(let k=0;k<=N;k++){
-      const f=k/N, ff=anchorEnd?(1-f):f, t=t0+(t1-t0)*ff, end=(k===0||k===N);
+      const f=k/N, ff=anchorEnd?(1-f):f, t=u0+(u1-u0)*ff, end=(k===0||k===N);
       const p=edgePointAt(sh,m.edge,t);
       pts.push({x:p.x+nx*mg, y:p.y+ny*mg, a:edgeTangentAt(sh,m.edge,t), forced:end, hl:end});
     }
@@ -3067,7 +3063,15 @@ function stitchFor(s){
   // U7: holes from any shared-stitch seam this shape's edges belong to (aligned across the stack).
   const seamPts = sharedSeamHolesForShape(s);
   if(!base && !seamPts.length) return null;
-  return {pts: (base?base.pts:[]).concat(seamPts)};
+  let basePts = base?base.pts:[];
+  if(basePts.length && seamPts.length){
+    // Corner ownership: the seam's inset end hole lands exactly where an adjacent independently-
+    // stitched edge puts its corner hole (start hole or far-corner push) — one hole per corner,
+    // the seam's wins (it must stay coincident across the stack). 0.75mm also catches the
+    // near-coincident miter at non-square path corners.
+    basePts = basePts.filter(p => !seamPts.some(q => Math.hypot(q.x-p.x, q.y-p.y) < 0.75));
+  }
+  return {pts: basePts.concat(seamPts)};
 }
 
 function renderContent() {
@@ -5974,7 +5978,6 @@ function closeModal(){document.getElementById('modal-bg').classList.remove('open
 function isHelpOpen(){ const b=document.getElementById('help-bg'); return b && b.classList.contains('open'); }
 function openHelp(){ const b=document.getElementById('help-bg'); if(b) b.classList.add('open'); }
 function closeHelp(){ const b=document.getElementById('help-bg'); if(b) b.classList.remove('open'); }
-function toggleHelp(){ isHelpOpen()?closeHelp():openHelp(); }
 
 // Quick Start (FTUE): a light four-step walkthrough, opened from the welcome screen. Keep it in
 // sync with the app's headline features (see the FTUE-maintenance note in CONTEXT.md backlog).

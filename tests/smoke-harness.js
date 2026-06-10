@@ -1114,9 +1114,8 @@ window.__SMOKE__ = function (spec) {
       assert('help: content has section headings', document.querySelectorAll('#help-bg .help-sec-h').length >= 6,
         `${document.querySelectorAll('#help-bg .help-sec-h').length}`);
       assert('help: covers Pen + Stitching topics', /Pen/.test(el.innerHTML) && /Stitch/.test(el.innerHTML), 'topics missing');
-      toggleHelp();
-      assert('help: toggleHelp closes it', !isHelpOpen(), el.className);
-      closeHelp(); // ensure clean state for later features
+      closeHelp();
+      assert('help: closeHelp closes it', !isHelpOpen(), el.className);
     },
 
     // ── Quick Start (FTUE) overlay, opened from the welcome screen ──
@@ -1520,8 +1519,14 @@ window.__SMOKE__ = function (spec) {
       const la = u7lay.get(u7id + ':0'), lb = u7lay.get(u7id + ':2');
       assert('U7: both members laid out', !!la && !!lb);
       assert('U7: members share hole count (coincide)', la.length === lb.length && la.length >= 2, `${la && la.length} vs ${lb && lb.length}`);
-      assert('U7: count = round(len/spacing)+1', la.length === Math.round(100 / u7s.stitch.spacing) + 1, `n=${la.length}`);
+      const u7mg = (u7s.stitch.margin > 0 ? u7s.stitch.margin : (S.defMargin || 3));
+      assert('U7: count = round(insetLen/spacing)+1', la.length === Math.round((100 - 2 * u7mg) / u7s.stitch.spacing) + 1, `n=${la.length}`);
       assert('U7: endpoints forced', la[0].forced && la[la.length - 1].forced);
+      // end-hole fix: the run's end holes are inset by the margin ALONG the edge too (one inset
+      // corner hole, like independent stitching), not at the raw edge ends.
+      assertNear('U7fix: first hole inset along edge', la[0].x, u7mg, 0.01);
+      assertNear('U7fix: first hole inset from edge', la[0].y, u7mg, 0.01);
+      assertNear('U7fix: last hole inset along edge', la[la.length - 1].x, 100 - u7mg, 0.01);
       // edge owned by the shared seam is not independently stitched; a free edge still is
       S.shapes[0].hasStitch = true;
       assert('U7: member edge skipped by edgeStitched', edgeStitched(S.shapes[0], 0) === false);
@@ -1530,6 +1535,18 @@ window.__SMOKE__ = function (spec) {
       S.shapes[0].hasStitch = false;
       const u7sf = stitchFor(S.shapes[0]);
       assert('U7: stitchFor surfaces seam holes', u7sf && u7sf.pts.length === la.length + lb.length, `pts=${u7sf && u7sf.pts.length}`);
+      // end-hole fix: independently stitch the two free perpendicular edges (1+3). Each corner is
+      // now owned by ONE hole — the seam's inset end hole; the perpendicular edge's coincident
+      // corner hole (start hole / far-corner push) is deduped. Exact expected total:
+      // seam 2*(N+1) + each side edge (round(74/sp) holes) minus its deduped start corner.
+      S.shapes[0].hasStitch = true; S.shapes[0].stitchEdges = [1, 3];
+      const u7m2 = S.shapes[0].stitchMargin ?? S.defMargin, u7sp2 = S.shapes[0].stitchSpacing ?? S.defSpacing;
+      const u7side = Math.max(1, Math.round((80 - 2 * u7m2) / u7sp2));   // holes i=0..N-1 per side edge
+      const u7df = stitchFor(S.shapes[0]);
+      assert('U7fix: one hole per corner (dedup vs side edges)',
+        u7df.pts.length === la.length + lb.length + 2 * (u7side - 1),
+        `pts=${u7df.pts.length} expected=${la.length + lb.length + 2 * (u7side - 1)}`);
+      S.shapes[0].hasStitch = false; S.shapes[0].stitchEdges = undefined;
       // round-trip persistence + schema bump
       const wireU7 = JSON.parse(JSON.stringify(buildSaveData()));
       applyLoadedData(wireU7);
@@ -1553,7 +1570,8 @@ window.__SMOKE__ = function (spec) {
       // offset 0 from start → the 100mm member sews its first 50mm (= mating edge); holes stay <= 50mm
       let pl = seamStitchLayout(seamOf());
       let pa = pl.get(u7p + ':0');
-      assert('U6mm: run auto = mating (50mm) edge', pa.length === Math.round(50 / sp) + 1, `n=${pa.length}`);
+      const pmg = (seamOf().stitch.margin > 0 ? seamOf().stitch.margin : (S.defMargin || 3));
+      assert('U6mm: run auto = mating (50mm) edge, ends inset', pa.length === Math.round((50 - 2 * pmg) / sp) + 1, `n=${pa.length}`);
       assert('U6mm: offset 0 → holes in the first 50mm', pa.every(p => p.x <= 50.001), 'a hole ran past the 50mm run');
       // offset 25mm from start → the 50mm run slides to x in [25,75]
       setMemberOffset(ps.id, 0, '25');
@@ -1626,14 +1644,17 @@ window.__SMOKE__ = function (spec) {
       assert('fold: creases pruned when their piece is deleted', S.assembly.folds.length < hadFolds && S.assembly.folds.every(f => f.shape !== pruneId));
     },
 
-    // ── zoom-fit bounding box correctness ──
+    // ── zoom-fit bounding box correctness (getFitBox = shapes union + every artboard) ──
     bbox() {
       buildScene();
-      const bb = getBBox();
-      assertNear('bbox x', bb.x, 0, 0.001);
-      assertNear('bbox y', bb.y, 0, 0.001);
-      assertNear('bbox right edge (x+w)', bb.x + bb.w, 170, 0.001);
-      assertNear('bbox bottom edge (y+h)', bb.y + bb.h, 180, 0.001);
+      const bb = getFitBox();
+      assert('fitbox covers the shape union (0,0..170,180)',
+        bb.x <= 0.001 && bb.y <= 0.001 && bb.x + bb.w >= 169.999 && bb.y + bb.h >= 179.999,
+        JSON.stringify(bb));
+      assert('fitbox covers every artboard',
+        S.artboards.every(a => bb.x <= a.x + 0.001 && bb.y <= a.y + 0.001 &&
+          bb.x + bb.w >= a.x + a.w - 0.001 && bb.y + bb.h >= a.y + a.h - 0.001),
+        JSON.stringify(bb));
       zoomFit();
       assert('zoomFit → zoom is finite and positive', isFinite(S.zoom) && S.zoom > 0, `zoom=${S.zoom}`);
       assert('zoomFit → zoom within clamp (max 10)', S.zoom <= 10, `zoom=${S.zoom}`);

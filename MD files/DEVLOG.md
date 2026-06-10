@@ -268,7 +268,50 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.9 — 2026-06-10
+
+### Shared-seam end holes follow the normal corner rules (one hole per corner)
+
+User feedback on the shipped U7+margin work: *"stitch as one seam should follow the same rules as
+the normal stitch behaviour, the extreme edge stitches are still overlapping"* — a crossed/doubled
+teal hole at both ends of a shared seam. Root cause (two holes ~one margin apart, at different
+angles): `seamStitchLayout` forced its endpoint holes at the **raw run ends** (inset only
+perpendicular to the seam edge), while the adjacent perpendicular edges still placed their own
+inset-corner hole (the seam edge reads `edgeStitched()=false`, so they also far-corner-pushed).
+
+- **End holes inset along the edge too.** The shared run's end holes now sit the stitch margin in
+  from the run ends (`N = round((run−2·margin)/spacing)`) — the same rule as `stitchRect`'s inner
+  corners, so a seam ending at a piece corner lands exactly on the inset corner. The inset is the
+  same **mm** on every member, so holes still coincide across the stack (U7's guarantee).
+- **Corner dedupe in `stitchFor`.** Independent holes within 0.75mm of a seam hole are dropped —
+  the seam owns the corner (its layout must stay shared); catches both the perpendicular edge's
+  start hole and its far-corner push, and the near-coincident miter at non-square path corners.
+- **3D parity (Leather Studio 3D v0.0.13).** `seamStitchSegments3D` trims each member's inset poly
+  by the margin (`clipPolyByT`) with N from the trimmed reference; `collectStitches` applies the
+  same 0.75mm dedupe; `buildAssembly` now carries `stitch.margin` through to the resolved seam
+  (it was silently dropped — a custom seam margin fell back to the default in 3D).
+
+`seam` smoke: count formulas updated to the inset run, +5 `U7fix` asserts (end holes on the inset
+corner, exact one-hole-per-corner total vs independently stitched side edges). Also repointed two
+harness checks at live functions (`getFitBox` coverage, `closeHelp`) after the dead-code cleanup
+removed `getBBox`/`toggleHelp`. Full **494/494**, build smoke 64/64.
+
+---
+
 ## v0.8.8 — 2026-06-09
+
+### Cleanup pass (2026-06-10, pre-release addendum)
+Audit pass across both repos. Removed two functions with zero references: `getBBox()`
+(superseded by `getFitBox()`/`worldAABB`) and `toggleHelp()` (help is opened/closed via
+`openHelp`/`closeHelp` directly). No behaviour change; quick smoke 13/13 + build smoke 64/64.
+Also: untracked `Leather Pattern Designer.lnk` from the public repo (machine-specific shortcut;
+now gitignored via `*.lnk`, local file kept), and **refreshed `STYLE_GUIDE.md` v0.7.18 → v0.8.8**:
+tokenization note (palette fully tokenised since v0.7.21), menus now documented as click-to-open +
+keyboard (was "⚠ hover-only"), §9 rewritten from "six gaps" to "fixed, here's the recipe" (only
+`prefers-reduced-motion` remains open), added the v0.8.x seam/fold/assembly canvas colours
+(amber picks `#f59e0b`, violet folds `#a78bfa`, golden-angle seam hues, dashed-red mismatch),
+the `seam-aid` screen-only rule, `.p-fl-w` labels, `confirmModal` 3-way `alt`, and the Assembly
+panel component pattern. Checklist gains the role=button/kbActivate and seam-aid items.
 
 ### Partial seams authored in mm, not arbitrary % (assembly-schema v4; paired with 3D v0.0.11)
 

@@ -1,6 +1,6 @@
 # Leather Pattern Designer — Style Guide
 
-_Human-facing design reference, derived from the live `index.html` (v0.7.18). The agent-facing
+_Human-facing design reference, derived from the live `index.html` (v0.8.8). The agent-facing
 version (design tokens + rules for code changes) lives in `.claude/skills/ui-language/SKILL.md`.
 This document also records the **WCAG contrast audit** (§8) — the source of truth for which colours
 are accessible and which need fixing._
@@ -32,8 +32,9 @@ are accessible and which need fixing._
 > site.** Text tiers: `--text` (primary), `--text-2` (secondary), `--text-muted`, `--text-faint`,
 > `--text-heading`. Surfaces: `--bg --canvas --panel --raised --dialog --hover --border
 > --border-soft`. Accent: `--accent --accent-bright --accent-hover --accent-soft`. Semantic/canvas:
-> `--success --drop --shape --stitch`. (Surface/border literals in non-text rules aren't all migrated
-> yet — see the DEVLOG backlog.)
+> `--success --drop --shape --stitch`. **Fully tokenised since v0.7.21** — the only surface/border
+> hexes left in CSS are the token definitions themselves (plus the intentional dialog-only
+> `#2f2f52` border shade).
 
 ### Dark (default)
 
@@ -78,6 +79,15 @@ are accessible and which need fixing._
 | Forced-corner hole highlight | `#00e0c6` (cyan) |
 | Pen first-anchor / close cue | `#27ae60` (green) |
 | Per-shape palette (`SHAPE_COLORS`) | `#3a7bd5` `#e74c3c` `#27ae60` `#e67e22` `#9b59b6` `#16a085` `#f1c40f` `#e84393` `#d35400` `#95a5a6` |
+| Hovered edge (Select + Seam tools) | `rgba(77,210,255,.7)` (the `--drop` cyan) |
+| Seam pick, pending (Seam tool) | `#f59e0b` amber edge + numbered badge (badge text `#1a1205`) |
+| Committed seam member / band / label | per-seam golden-angle hue (`seamColor(id)`) over a theme halo |
+| Seam length-mismatch | dashed `#e74c3c` over the offending member edge |
+| Fold crease (draft + committed) | dashed violet `#a78bfa`, ⛰/⌄ angle label |
+
+> **All seam/fold/assembly overlays carry `class="seam-aid"`** — screen-only metadata, stripped
+> from print (`@media print`) and from SVG/PNG export (`artboardSVGClone`). Never let an aid leak
+> into output.
 
 > **Print is always black-on-white and ignores the theme.** On-screen hollow/outline labels map back
 > to solid dark fill for print legibility.
@@ -125,7 +135,10 @@ are accessible and which need fixing._
 ### Property rows (the canonical form layout)
 - `.p-grp` — UPPERCASE subcategory heading with a bottom border (Position, Size, Rotation, …).
 - `.p-pair` — 2-column grid for paired fields (X|Y, W|H).
-- `.p-field` — one labelled field (`.p-fl` = 1-char label; `.p-lbl` = 52px label).
+- `.p-field` — one labelled field (`.p-fl` = 1-char label, hard 13px width; `.p-fl-w` = auto-width
+  label for anything longer than one character — multi-char text in a bare `.p-fl` gets clipped,
+  the v0.8.5 "Ord/Allo/Star" bug; `.p-lbl` = 52px label). The `readability` smoke asserts no
+  field label is clipped.
 - `.p-inp` / `.p-sel` — **focus = accent border** (`#e74c3c`, outline removed).
 - `.p-ck-row` — checkbox row, checkbox `accent-color:#e74c3c`.
 - Pattern: heading → paired rows → checkboxes → optional `.p-note` helper text.
@@ -133,14 +146,28 @@ are accessible and which need fixing._
 ### Menus
 - Menubar `.m-item` → `.m-drop`. Action `.m-act` = text left, keyboard hint (`.kb`) + checkmark
   (`.m-chk`, accent) right-aligned. `.m-sep` dividers, `.m-grp-lbl` group labels, `.m-nest` submenus.
-- ⚠️ Currently **hover-only** (no keyboard open) — see §9.
+- **Click-to-open, stay-open** (v0.7.20, `initMenubar`): dropdowns open on click via the `.open`
+  class (no hover-open), switch on hover while one is open, close on Esc / outside click. Command
+  rows close on activate; toggle/checkmark rows stay open. Full keyboard nav (Enter/Space/↓ open,
+  ↑/↓ within, ←/→ across menus) + `role=menubar/menu/menuitem` ARIA.
 
 ### Layers rows
 - `.lay-row`: grip ⠿ · colour swatch · name · ▲▼ · eye/lock toggles. Selected = `#23234a` + border;
   drag targets use cyan inset shadow; hidden rows dim to `.4`; lock toggle turns orange `#e07a3c`.
 
+### Assembly panel & seam rows (v0.8.x)
+- **Assembly** is a collapsible `.p-sec`, shown when the Seam tool is active or any seam exists.
+  Seam list rows: per-seam **colour chip** (`seamColor` — stable golden-angle hue), name, type badge
+  (✄ stitch / ⟋ fold / ● glue), member count, delete (via `confirmModal`). Fold rows: violet chip,
+  name, owning piece, ⛰/⌄/flat angle badge, locate ◎ + delete ✕. All rows are focusable
+  `role="button"` controls.
+- Problem states reuse the accent red: a **⚠ red strip** in the editor, red member rows, and a
+  dashed-red canvas overlay — don't invent a new warning colour.
+
 ### Dialogs & feedback
-- `confirmModal(message, {ok, cancel, danger, title})` → `Promise<bool>`; `cancel:null` = alert.
+- `confirmModal(message, {ok, cancel, alt, danger, title})` → `Promise<bool|'alt'>`; `cancel:null`
+  = alert. The optional `alt` middle button (v0.7.20) makes 3-way choices (e.g. export **All
+  artboards / Active only / Cancel**) — Esc/backdrop always resolves `false`, never a silent action.
 - `alertModal(message, title)` for errors.
 - Both framed by the **french-stitch border**, theme-aware, Esc/backdrop to close, OK auto-focused.
 - **Status flash** (`flashSaved(msg)`) is the lightweight success signal (~2.5s, green). Use it for
@@ -160,6 +187,9 @@ product's signature decoration. Reuse it for new framed surfaces rather than inv
 - For a **fixed N-pixel** visual size, use `N / (S.zoom*PX)` mm (handles, labels, hit zones).
 - Stroke units: with `non-scaling-stroke`, width is screen px; without, it's mm. Use mm widths for
   shape outlines; reserve `non-scaling-stroke` for pixel-exact aids (grid).
+- **Screen-only aids get `class="seam-aid"`** (seam overlays, fold creases, pick badges, partial-join
+  bands). The class is `display:none` under `@media print` and stripped from SVG/PNG export by
+  `artboardSVGClone` — tag any new on-canvas metadata the same way.
 
 ---
 
@@ -220,23 +250,26 @@ theme/token colour. The tiny `#app-title` version label was also lifted onto `--
 
 ---
 
-## 9. Accessibility — structural notes
+## 9. Accessibility — structural status
 
-- **Menus are mouse-only.** `.m-drop` opens on `:hover` (line ~30), not `:focus-within`/click, and
-  `.m-item` isn't focusable. Keyboard and assistive-tech users can't open the menu bar (most actions
-  do have keyboard shortcuts, which mitigates but doesn't replace this). _Fix:_ open on
-  `:focus-within` + click, make `.m-item` focusable (`tabindex`/`<button>`), add `role="menu"`.
-- **~21 clickable `<div>`s** (`.m-act`, list rows) are not keyboard-focusable and aren't announced as
-  controls. Toolbar items are real `<button>`s (good). _Fix:_ promote interactive divs to `<button>`
-  or add `role="button"` + `tabindex="0"` + Enter/Space handlers (the theme toggle already does this).
-- **`outline:none` (5×)** removes the focus ring; inputs replace it with an accent border, but some
-  focusable elements end up with no visible focus state. _Fix:_ add a visible `:focus-visible` style.
-- **Almost no ARIA** (1 `role`, 1 `tabindex`). Toolbar tooltips are CSS `data-tip` only (not exposed
-  to screen readers). _Fix:_ add `aria-label` to icon buttons, `aria-pressed` to toggles.
-- **No `prefers-reduced-motion`** guard despite transitions. _Fix:_ wrap transitions in a
-  `@media (prefers-reduced-motion: no-preference)` query, or disable under `reduce`.
-- **Theme is manual only** (no `prefers-color-scheme` default) — acceptable, but defaulting to the
-  system preference on first run would be friendlier.
+The v0.7.18 review found six structural gaps; **all but one are fixed** (v0.7.20 pass + v0.7.24
+follow-up). What's in place — keep new UI consistent with it:
+
+- **Menus** are click-to-open with full keyboard nav + menu ARIA (v0.7.20 — see §5).
+- **Every interactive element is a real control.** Toolbar items are `<button>`s; formerly
+  click-only `<div>`s (menu actions, tab close ✕, section headers, document tabs, artboard rows,
+  colour swatches, layer rows + group headers, seam/fold rows) carry `role="button"` +
+  `tabindex="0"` + `onkeydown="kbActivate(event)"` (Enter/Space fires the element's own `click()`,
+  guarded by `e.target===e.currentTarget` so inner controls don't double-fire), plus `aria-label`s
+  and `aria-expanded` on collapsibles. **New clickable rows must follow this recipe.**
+- **Visible focus:** global `:focus-visible` ring (2px `--accent-bright`, offset 2) — keyboard only;
+  inputs keep their accent-border focus instead (no double ring).
+- **ARIA:** `role=menubar/menu/menuitem`, `role=toolbar`; icon buttons get `aria-label` mirrored
+  from `data-tip`; tool buttons get `aria-pressed` (synced in `applyToolChrome`). Wired at launch by
+  `initAccessibility()`.
+- **Theme follows `prefers-color-scheme` on first run**; an explicit toggle persists and wins.
+- ⚠ **Still open:** no `prefers-reduced-motion` guard on transitions — deliberately deferred (low
+  priority, tracked in the DEVLOG backlog).
 
 ---
 
@@ -250,3 +283,6 @@ theme/token colour. The tiny `#app-title` version label was also lifted onto `--
 6. Framed/welcome surface → reuse `frenchBorder`.
 7. Screen-constant canvas sizing → `N/(S.zoom*PX)` mm; print stays black-on-white.
 8. **Check contrast ≥ 4.5:1** (text) / 3:1 (large/graphical) against §8 before shipping a new colour.
+9. New clickable row/div → `role="button"` + `tabindex="0"` + `kbActivate` + `aria-label` (§9);
+   field labels longer than one character use `.p-fl-w`, not `.p-fl`.
+10. New on-canvas aid/overlay → `class="seam-aid"` so print + SVG/PNG export strip it (§6).
