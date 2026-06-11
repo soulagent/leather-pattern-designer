@@ -268,6 +268,106 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.10 — 2026-06-11
+
+### Per-edge stitch toggle list (UI/UX pass — discoverability)
+
+First item of the queued `frontend-design` + `ui-language` UX audit (the
+`todo-ui-ux-design-pass` batch). **Problem:** picking which edges of a piece get
+stitched was an undiscoverable canvas gesture — the only cue was a `p-note`
+("Tip: click an edge…"). The hover highlight and per-edge model already existed
+(`edgeStitched`/`setEdgeStitch`, `S.hoverEdge` cyan overlay), but nothing surfaced
+them.
+
+**Fix:** the Stitching panel now renders a visible, self-documenting **per-edge
+list** under "Stitch all edges" — one row per edge with a live checkbox.
+- `renderEdgeStitchList(sh)` builds `#edge-stitch-list`; rect edges read
+  **Top/Right/Bottom/Left** (`edgeLabel`/`RECT_EDGE_NAMES`, local frame), paths
+  read **Edge N**. Edges owned by a shared-stitch seam show a disabled checkbox +
+  an orange **seam** tag (they're stitched by the seam layout, not independently).
+- Two-way canvas sync: **hovering a row** glows the matching edge on the canvas
+  (drives the existing `S.hoverEdge` overlay via `hoverEdgeRow`); **clicking a row**
+  selects that edge (`selectEdgeRow`, same state a canvas edge-click sets);
+  **toggling the checkbox** stitches just that edge (`toggleEdgeFromList`).
+- The list is guarded against no-op rewrites (`box._h` cache) so a hover-only
+  re-render (`renderContent → updatePropsPanel`) doesn't destroy the row under the
+  cursor. Replaces the old single canvas-select-only `#edge-stitch-row` checkbox;
+  hint copy rewritten as an invitation.
+
+HTML/CSS/JS only (`.es-grp`/`.es-row`/`.es-name`/`.es-tag` + a `body.light`
+override). No save-format change. `peredge` smoke gains 4 asserts (labels + row
+rendering mirror state).
+
+### Empty-state invitation (UI/UX pass — #2)
+
+Second item of the same audit. **Problem:** the "No shape selected" panel was a
+dead end — `frontend-design` is explicit that an empty screen is an invitation to
+act. **Fix:** `#no-sel-msg` is now a small actionable prompt — a title, a one-line
+sub, and three clickable draw-tool buttons (Rectangle B / Pen P / Text T, each
+calling `setTool`). `updatePropsPanel` tailors the copy: a blank document reads
+**"Start your pattern → Draw your first piece"**, a populated-but-deselected
+document reads **"No shape selected → Click a piece to edit it, or draw a new
+one."** New `.ns-*` styles use existing tokens (theme-safe — hover is accent
+border + `var(--text)`, no white-on-light). `emptystate` smoke feature (4).
+
+### Toolbar + tool UX (UI/UX pass — #3, #4, #5, #6)
+
+Four more audit items, same version.
+
+- **#3 Per-tool status hints.** Every tool now teaches its basic use, not just the
+  Pen. New `TOOL_HINTS` map; `applyToolChrome` writes the active tool's one-liner to
+  a new right-aligned `#st-hint` status-bar span (italic, faint). The Pen keeps its
+  richer `#pen-hints-sec` panel on top. The active tool label (`#st-tool`) also reads
+  a touch brighter than the passive telemetry beside it.
+- **#4 Unified toolbar icons + Delete removed.** Replaced the per-button Unicode
+  glyphs (each with its own inline `font-size` patch) with inline **SVG** icons at one
+  consistent 24-viewBox / 18px size (`currentColor`, matching the layer eye/lock).
+  Text and Help stay as letter glyphs via `.t-ico-letter`. The destructive **Delete**
+  button was pulled out of the tool column (it's already Edit ▸ Delete Selected + the
+  Del key) so it can't be misfired as if it were a mode.
+- **#5 Shortcut key badges.** A faint Figma-style `.t-key` badge sits bottom-right of
+  each tool whose icon isn't already its letter (V/R/A/B/P/S) — passive shortcut
+  teaching; brightens on the active button.
+- **#6 Empty-canvas prompt.** A blank document shows a centred **french-stitch-framed**
+  "Draw your first piece" card on the canvas (`#canvas-empty`, reuses `frenchBorder` —
+  the product signature, per ui-language §7), `pointer-events:none`, hidden in print and
+  the moment a shape exists (`updateCanvasEmpty` in `renderContent`). The stitch frame is
+  sized to the **measured** text card (`.ce-card` offset size → `frenchBorder(w,h)`) so the
+  slits never overlap the copy (fixed-size box was the first cut). Plus **entry centring**:
+  new `centerOnArtboard()` frames the ACTIVE artboard centred in the viewport (zoom capped
+  at 1) on first launch + every new/blank doc (`afterDocSwap` when `!shapes.length`, and at
+  init) — replaces the old top-left default so the page and the prompt line up.
+
+### Default shape colour cycles the palette (user request)
+
+New shapes now default to the **next preset colour, looping** (`nextShapeColor()` over
+`SHAPE_COLORS`, session-global `_colorCycle`) instead of all-blue — applied in `addShape`
+(rect/circle, guarded by `color==null`), the pen-finish path literal, and `makeTextShape`.
+Clones/duplicates keep their own colour; an explicit pick still overrides. The pen's
+in-progress preview renders in editor chrome (cyan/white/orange), not the shape colour, so
+the colour is decided once at finish — no preview mismatch.
+
+### P3 polish (UI/UX pass — #7, #8, #9)
+
+The last three audit items.
+
+- **#7 Status-bar hierarchy.** Stateful readouts (active tool `#st-tool`, snap-on
+  `#st-snap`) now read brighter (`--text-2`, 600); passive telemetry (pos/zoom/shapes/
+  history) recedes to `--text-faint`. The bar was six equal-weight items before.
+- **#8 Settings out of Edit → menubar gear.** `Settings…` was an odd fit under Edit;
+  it's now an always-visible cog button (`#mb-settings`, inline SVG, `.mb-icon-btn`)
+  on the right of the menubar next to the theme toggle. Removed from the Edit menu.
+- **#9 3D-companion pointer.** The Assembly panel now has a one-line callout —
+  "Open this .lpd in Leather Studio 3D to preview the assembled product in 3D" — so the
+  seam/fold→3D handoff is discoverable from where you author it.
+
+Combined for v0.8.10: HTML/CSS/JS only, no save-format change. `emptystate` (4) +
+`toolux` (12, incl. entry-centring + gear + 3D pointer) + reworked `color` (8, incl.
+cycle) smoke → full **518/518**, build smoke 64. **All 9 UI/UX audit items + the
+colour-cycling extra are done.**
+
+---
+
 ## v0.8.9 — 2026-06-10
 
 ### Shared-seam end holes follow the normal corner rules (one hole per corner)

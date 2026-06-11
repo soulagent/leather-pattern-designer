@@ -65,6 +65,10 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);dis
 .m-sep{height:1px;background:var(--border);margin:3px 6px}
 .m-grp-lbl{padding:3px 14px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-faint);cursor:default}
 #app-title{margin-left:auto;font-size:11px;color:var(--text-faint);padding-right:10px}
+/* menubar icon button (Settings gear) — its own always-visible affordance, out of the Edit menu */
+.mb-icon-btn{display:flex;align-items:center;justify-content:center;width:26px;height:22px;padding:0;border:none;background:none;color:var(--text-faint);cursor:pointer;border-radius:4px}
+.mb-icon-btn:hover{background:var(--hover);color:var(--text)}
+.mb-icon-btn svg{width:15px;height:15px;display:block;pointer-events:none}
 /* standalone light/dark toggle, top-right of the menubar */
 #theme-toggle{display:flex;align-items:center;gap:8px;height:100%;padding:0 10px 0 4px;cursor:pointer;font-size:11px;color:#9a9ac0;user-select:none;outline:none}
 #theme-toggle:hover,#theme-toggle:focus-visible{color:#dcdcf0}
@@ -84,6 +88,10 @@ body.light .theme-knob{transform:translateX(18px);background:#c0392b}
 .t-btn.active{background:#c0392b;border-color:#e74c3c;color:#fff}
 .t-sep{width:60%;height:1px;background:var(--border);margin:2px 0}
 .t-btn[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:42px;top:50%;transform:translateY(-50%);background:var(--raised);border:1px solid var(--border);padding:3px 8px;border-radius:4px;font-size:11px;white-space:nowrap;pointer-events:none;z-index:999;color:#eee}
+.t-btn svg{width:18px;height:18px;display:block;pointer-events:none}                 /* one consistent icon size — no per-button font-size patches */
+.t-ico-letter{font-size:17px;font-weight:700;line-height:1;pointer-events:none}        /* T / ? read as their own glyph */
+.t-key{position:absolute;right:2px;bottom:1px;font-size:8px;line-height:1;font-weight:600;color:var(--text-faint);pointer-events:none} /* passive shortcut hint, Figma-style */
+.t-btn.active .t-key{color:rgba(255,255,255,.72)}
 
 /* ── CANVAS ── */
 #canvas-wrap{flex:1;position:relative;overflow:hidden;background:var(--canvas);cursor:crosshair}
@@ -92,6 +100,16 @@ body.light .theme-knob{transform:translateX(18px);background:#c0392b}
 #canvas-wrap.cur-grab{cursor:grab}
 #canvas-wrap.cur-grabbing{cursor:grabbing!important}
 #cvs{width:100%;height:100%;display:block}
+/* empty-canvas prompt — reuses the french-stitch signature (frenchBorder), framed tightly around the text */
+#canvas-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:2}
+#canvas-empty.hidden{display:none}
+.ce-card{position:relative;display:inline-block}                               /* sizes to the text; the stitch SVG is built to match */
+#canvas-empty-stitch{position:absolute;inset:0;width:100%;height:100%;color:var(--text-faint)}
+#canvas-empty-stitch rect{fill:currentColor;opacity:.5}
+.ce-inner{position:relative;text-align:center;padding:28px 52px;max-width:340px} /* padding = the clear gap between copy and the stitch frame */
+.ce-title{color:var(--text-2);font-size:15px;font-weight:600;letter-spacing:.01em;margin-bottom:6px}
+.ce-sub{color:var(--text-faint);font-size:11px;line-height:1.5}
+.ce-sub b{color:var(--text-muted);font-weight:600}
 
 /* ── PROPS PANEL ── */
 #props{background:var(--panel);border-left:1px solid var(--border);width:210px;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
@@ -133,7 +151,24 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .align-cell.on{background:#3a1a24;border-color:#e74c3c}
 .align-cell i{display:block;height:2px;border-radius:1px;background:#777}
 .align-cell.on i{background:#ff8a8a}
-#no-sel-msg{color:var(--text-faint);font-size:12px;text-align:center;padding:12px 0 4px}
+/* empty-state invitation (no shape selected) — an actionable prompt, not a dead end */
+#no-sel-msg{font-size:12px;text-align:center;padding:14px 2px 6px}
+.ns-title{color:var(--text-2);font-size:12px;font-weight:600;margin-bottom:3px}
+.ns-sub{color:var(--text-faint);font-size:10.5px;line-height:1.4;margin-bottom:10px}
+.ns-tools{display:flex;flex-direction:column;gap:5px}
+.ns-tool{display:flex;align-items:center;gap:9px;padding:6px 9px;border:1px solid var(--border);background:var(--raised);color:var(--text-2);border-radius:5px;font-size:11px;cursor:pointer;text-align:left;transition:background .12s,border-color .12s,color .12s}
+.ns-tool:hover{background:var(--hover);border-color:var(--accent-bright);color:var(--text)}
+.ns-ico{font-size:14px;width:16px;text-align:center;flex-shrink:0;color:var(--text-muted)}
+.ns-tool:hover .ns-ico{color:var(--text)}
+.ns-key{margin-left:auto;font-size:9px;color:var(--text-faint);border:1px solid var(--border);border-radius:3px;padding:0 4px;min-width:13px}
+/* per-edge stitch toggle list (Stitching section) — makes edge-stitch picking visible + self-documenting */
+.es-grp{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-heading);font-weight:700;margin:9px 0 4px}
+.es-row{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text-2);padding:3px 5px;border-radius:4px;cursor:pointer;border:1px solid transparent}
+.es-row:hover{background:var(--hover)}
+.es-row.sel{background:#23234a;border-color:#3a3a6a}
+.es-row input{accent-color:#e74c3c;cursor:pointer;flex-shrink:0;margin:0}
+.es-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.es-tag{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--stitch);border:1px solid var(--stitch);border-radius:3px;padding:0 4px;opacity:.85;flex-shrink:0}
 .swatches{display:flex;flex-wrap:wrap;gap:5px;flex:1}
 .sw{width:18px;height:18px;border-radius:4px;cursor:pointer;border:2px solid transparent;box-shadow:0 0 0 1px #00000055 inset}
 .sw:hover{transform:scale(1.12)}
@@ -179,6 +214,11 @@ body.col-resizing{cursor:col-resize;user-select:none}
 
 /* ── STATUSBAR ── */
 #status{background:var(--panel);border-top:1px solid var(--border);height:22px;display:flex;align-items:center;padding:0 10px;gap:16px;font-size:10px;color:var(--text-muted);flex-shrink:0}
+/* status-bar hierarchy: stateful items (active tool, snap-on) read brighter; passive telemetry recedes */
+#st-tool{color:var(--text-2);font-weight:600}
+#st-snap{color:var(--text-2);font-weight:600}                              /* only shown while snap is ON — it's a live mode */
+#st-pos,#st-zoom,#st-shapes,#st-hist{color:var(--text-faint)}              /* passive readouts step back */
+#st-hint{margin-left:auto;color:var(--text-faint);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0} /* per-tool contextual instruction */
 #st-autosave{color:#4a8}
 
 /* ── MODAL ── */
@@ -221,7 +261,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
 /* ── PRINT ── */
 @media print{
   body{background:#fff!important}
-  #menubar,#tabbar,#toolbar,#props,#status{display:none!important}
+  #menubar,#tabbar,#toolbar,#props,#status,#canvas-empty{display:none!important}
   #main{display:block!important}
   #canvas-wrap{width:100%!important;height:100vh!important;background:#fff!important}
   #cvs{width:100%!important;height:100%!important}
@@ -384,6 +424,7 @@ body.light .lay-arr:hover:not(:disabled){background:#c8cce8;color:#111}
 body.light .lay-tog:hover{background:#d8dcf0;color:#222}
 body.light .lay-tog.on{color:#3a3a6a}
 body.light .lay-tog.lock-on{color:#c75a1c}
+body.light .es-row.sel{background:#d8dcf0;border-color:#b8bce0}
 /* settings / page modal (.modal surface+border inherit tokens) */
 body.light .m-inp{background:#fff;border-color:#cdd0dc;color:#23232e}
 body.light .m-section-hd{border-top-color:#dde0ea}
@@ -663,8 +704,6 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" onclick="redo()">Redo <span class="kb">Ctrl+Y</span></div>
       <div class="m-sep"></div>
       <div class="m-act" onclick="deleteSelected()">Delete Selected <span class="kb">Del</span></div>
-      <div class="m-sep"></div>
-      <div class="m-act" onclick="openSettings()">Settings…</div>
     </div>
   </div>
   <div class="m-item">View
@@ -700,7 +739,8 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.9</div>
+  <div id="app-title">Leather Pattern Designer v0.8.10</div>
+  <button id="mb-settings" class="mb-icon-btn" title="Settings" aria-label="Settings" onclick="openSettings()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
     <span id="theme-label">Dark Mode</span>
@@ -715,27 +755,28 @@ body.light .qs-foot{border-top-color:#dde0ea}
 <div id="main">
   <!-- TOOLBAR -->
   <div id="toolbar">
+    <!-- Icons are inline SVG (currentColor, one consistent 24-viewBox/18px size) so every tool reads at the
+         same visual weight. Tools whose icon isn't already the shortcut letter carry a faint .t-key badge. -->
     <!-- home / welcome screen -->
-    <button class="t-btn" id="tb-home" data-tip="Home / Welcome" onclick="showHome()" style="font-size:17px">&#8962;</button>
+    <button class="t-btn" id="tb-home" data-tip="Home / Welcome" onclick="showHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9h5v-5h4v5h5v-9"/></svg></button>
     <div class="t-sep"></div>
     <!-- interaction tools -->
-    <button class="t-btn active" id="tb-select" data-tip="Select (V)" onclick="setTool('select')">&#9654;</button>
-    <button class="t-btn" id="tb-rotate" data-tip="Rotate (R)" onclick="setTool('rotate')" style="font-size:16px">&#10227;</button>
-    <button class="t-btn" id="tb-artboard" data-tip="Artboard (A)" onclick="setTool('artboard')" style="font-size:15px">&#9783;</button>
+    <button class="t-btn active" id="tb-select" data-tip="Select (V)" onclick="setTool('select')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 2.5l13.2 8.1-5.6 1.2 2.7 5.6-2.4 1.1-2.7-5.6L5 17.5z"/></svg><span class="t-key">V</span></button>
+    <button class="t-btn" id="tb-rotate" data-tip="Rotate (R)" onclick="setTool('rotate')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a8 8 0 1 0-2.3 5.9"/><path d="M20 4v5h-5"/></svg><span class="t-key">R</span></button>
+    <button class="t-btn" id="tb-artboard" data-tip="Artboard (A)" onclick="setTool('artboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5H6a2 2 0 0 0-2 2v2"/><path d="M16 3.5h2a2 2 0 0 1 2 2v2"/><path d="M20 16v2a2 2 0 0 1-2 2h-2"/><path d="M8 20.5H6a2 2 0 0 1-2-2v-2"/></svg><span class="t-key">A</span></button>
     <div class="t-sep"></div>
     <!-- shape tools -->
-    <button class="t-btn" id="tb-rect"   data-tip="Rectangle (B)"  onclick="setTool('rect')">&#9645;</button>
+    <button class="t-btn" id="tb-rect"   data-tip="Rectangle (B)"  onclick="setTool('rect')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5.5" width="17" height="13" rx="1.5"/></svg><span class="t-key">B</span></button>
     <!-- Circle tool removed (v0.3.16). Circle rendering/stitching/convert logic kept so existing
          and saved circles still work; only the create-tool button + C shortcut are gone. -->
-    <button class="t-btn" id="tb-pen"    data-tip="Pen / Bezier (P)" onclick="setTool('pen')" style="font-size:15px">&#9998;</button>
-    <button class="t-btn" id="tb-text"   data-tip="Text (T)" onclick="setTool('text')" style="font-size:16px;font-weight:700">T</button>
+    <button class="t-btn" id="tb-pen"    data-tip="Pen / Bezier (P)" onclick="setTool('pen')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.5l6 6L9 21H3v-6z"/><path d="M11.5 6.5l6 6"/></svg><span class="t-key">P</span></button>
+    <button class="t-btn" id="tb-text"   data-tip="Text (T)" onclick="setTool('text')"><span class="t-ico-letter">T</span></button>
     <div class="t-sep"></div>
     <!-- assembly -->
-    <button class="t-btn" id="tb-seam"   data-tip="Seam (S)" onclick="setTool('seam')" style="font-size:15px">&#8904;</button>
-    <div class="t-sep"></div>
-    <button class="t-btn" data-tip="Delete Selected (Del)" onclick="deleteSelected()" style="font-size:14px">&#128465;</button>
-    <!-- help: pinned to the bottom of the toolbar -->
-    <button class="t-btn" id="tb-help" data-tip="Help (?)" onclick="openHelp()" style="margin-top:auto;font-size:16px;font-weight:700">?</button>
+    <button class="t-btn" id="tb-seam"   data-tip="Seam (S)" onclick="setTool('seam')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16" stroke-dasharray="3.2 2.4"/><path d="M7 9l-2 6M13 9l-2 6M19 9l-2 6"/></svg><span class="t-key">S</span></button>
+    <!-- help: pinned to the bottom of the toolbar (Delete moved out of the tool column — it's destructive,
+         and already lives in Edit ▸ Delete Selected + the Del key) -->
+    <button class="t-btn" id="tb-help" data-tip="Help (?)" onclick="openHelp()" style="margin-top:auto"><span class="t-ico-letter">?</span></button>
   </div>
 
   <!-- CANVAS -->
@@ -753,6 +794,16 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <g id="vp"></g>
       <g id="rul"></g><!-- rulers: drawn in SCREEN coords, outside the scaled #vp -->
     </svg>
+    <!-- empty-canvas prompt: a french-stitch-framed invitation shown only on a blank document (screen-only) -->
+    <div id="canvas-empty" class="hidden" aria-hidden="true">
+      <div class="ce-card">
+        <svg id="canvas-empty-stitch" preserveAspectRatio="none"></svg>
+        <div class="ce-inner">
+          <div class="ce-title">Draw your first piece</div>
+          <div class="ce-sub">Pick a tool on the left — or press <b>B</b> for a rectangle</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- PROPS PANEL resize handle -->
@@ -766,7 +817,15 @@ body.light .qs-foot{border-top-color:#dde0ea}
         <span>Shape Properties</span><span class="p-tog">▾</span>
       </div>
       <div class="p-sec-body" id="body-shape">
-        <div id="no-sel-msg">No shape selected</div>
+        <div id="no-sel-msg">
+          <div class="ns-title" id="ns-title">No shape selected</div>
+          <div class="ns-sub" id="ns-sub">Click a piece to edit it, or draw a new one:</div>
+          <div class="ns-tools">
+            <button class="ns-tool" onclick="setTool('rect')"><span class="ns-ico">&#9645;</span>Rectangle<span class="ns-key">B</span></button>
+            <button class="ns-tool" onclick="setTool('pen')"><span class="ns-ico">&#9998;</span>Pen / curve<span class="ns-key">P</span></button>
+            <button class="ns-tool" onclick="setTool('text')"><span class="ns-ico" style="font-weight:700">T</span>Text box<span class="ns-key">T</span></button>
+          </div>
+        </div>
         <div id="multi-sel-msg" style="display:none">
           <div class="p-dim-sum" id="multi-sel-count">—</div>
           <p class="p-note" id="multi-sel-detail" style="text-align:center"></p>
@@ -891,9 +950,9 @@ body.light .qs-foot{border-top-color:#dde0ea}
       </div>
       <div class="p-sec-body" id="body-stitch">
         <label class="p-ck-row"><input type="checkbox" id="pi-stitch" onchange="toggleShapeStitch(this.checked)"> Stitch all edges</label>
-        <label class="p-ck-row" id="edge-stitch-row" style="display:none"><input type="checkbox" id="pi-edge-stitch" onchange="toggleEdgeStitch(this.checked)"> <span id="edge-stitch-lbl">Stitch this edge</span></label>
+        <div id="edge-stitch-list"></div>
         <div id="seam-membership" style="display:none;margin-top:5px"></div>
-        <p class="p-note" id="edge-hint">Tip: click an edge of the selected shape to pick which sides get stitched.</p>
+        <p class="p-note" id="edge-hint">Toggle a side above, or click its edge on the canvas. Hover a row to find it.</p>
         <div class="p-row"><span class="p-lbl">Margin</span><input class="p-inp" id="pi-margin" type="number" step="0.01" min="0.5" value="3" onchange="applyProps()"></div>
         <div class="p-row">
           <span class="p-lbl">Spacing</span>
@@ -979,6 +1038,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
         <div id="folds-list" style="display:none"></div>
         <div id="fold-editor"></div>
         <p class="p-note">With the <b>Seam tool</b> (S), click the edges that join, then create a seam. Switch to <b>Fold</b> mode to draw creases. Edges sharing a seam join in the 3D assembly preview; folds bend it. Seams &amp; folds are screen-only — never printed.</p>
+        <p class="p-note" style="margin-top:7px;color:var(--text-2)">▸ Open this <b>.lpd</b> in <b>Leather Studio 3D</b> to preview the assembled product in 3D.</p>
       </div>
     </div>
   </div><!-- #props -->
@@ -992,6 +1052,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
   <span id="st-snap" style="display:none">Snap: 1mm</span>
   <span id="st-shapes">Shapes: 0</span>
   <span id="st-hist">History: 0/100</span>
+  <span id="st-hint"></span>
   <span id="st-autosave" style="display:none"></span>
 </div>
 
@@ -1144,8 +1205,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.9';
-const BUILD_TAG = 'juniper-kestrel-V20';
+const APP_VERSION = 'v0.8.10';
+const BUILD_TAG = 'slate-quail-V21';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -1163,6 +1224,10 @@ const AUTOSAVE_OPTS = [0, 300, 600, 900, 1800, 2700, 3600, 7200, 10800, 14400, 1
 // screen. Print is always black (see @media print), so colour is a screen-only aid.
 const DEFAULT_SHAPE_COLOR = '#3a7bd5';
 const SHAPE_COLORS = ['#3a7bd5','#e74c3c','#27ae60','#e67e22','#9b59b6','#16a085','#f1c40f','#e84393','#d35400','#95a5a6'];
+// Each new shape defaults to the next preset colour, looping — so freshly drawn pieces are easy to tell
+// apart without manually recolouring. Session-global (not per-doc / not saved); user can still override.
+let _colorCycle = 0;
+function nextShapeColor(){ return SHAPE_COLORS[(_colorCycle++) % SHAPE_COLORS.length]; }
 // Stitching-iron sizes offered by the Spacing dropdown (per-shape + Settings default). 'custom' = free entry.
 const SPACING_PRESETS = ['2.7','3','3.38','3.85'];
 
@@ -1203,7 +1268,7 @@ function normShape(s){
 function makeTextShape(x,y,w,h){
   return normText({type:'text', x, y, w, h, text:'', fontSize:TEXT_DEFAULT_FONT,
     bold:false, italic:false, outline:false, outlineColor:'#000000', outlineWidth:0.4,
-    align:'left', valign:'top', fill:true, autoGrow:false, color:DEFAULT_SHAPE_COLOR});
+    align:'left', valign:'top', fill:true, autoGrow:false, color:nextShapeColor()});
 }
 function textPad(s){ return Math.min(s.fontSize*0.25, s.w*0.12, s.h*0.12); } // inner inset, mm
 // ── Inline emphasis markup (per-run bold/italic within one box, v0.7.22) ──
@@ -1470,6 +1535,7 @@ function afterDocSwap(){
   applyPageDims(); updatePageMenu(); updatePrintPageSize();
   renderContent(); updateHistStatus(); renderTabs();
   if(S.showRulers) renderRulers();
+  if(!S.shapes.length) centerOnArtboard(); // a blank doc enters centred (matches the empty-canvas prompt)
 }
 function switchTab(i){
   if(i===S.activeTab || i<0 || i>=S.tabs.length) return;
@@ -1897,6 +1963,7 @@ function readAutoSaveInfo() {
 // ═══════════════════════════════════════════════════════
 function addShape(sh) {
   pushHist();
+  if(sh.color==null) sh.color = nextShapeColor(); // cycle the preset palette for new shapes (clones keep their own)
   sh.id = S.nextId++;
   S.shapes.push(sh);
   S.selId = sh.id;
@@ -3309,6 +3376,24 @@ function renderContent() {
   renderSeamsList();
   renderFoldsList();
   updateStatus();
+  updateCanvasEmpty();
+}
+
+// Show the french-stitch-framed "draw your first piece" prompt only on a blank document.
+// The stitch frame is built to the MEASURED text card so the slits never overlap the copy.
+function updateCanvasEmpty(){
+  const el=document.getElementById('canvas-empty'); if(!el) return;
+  const show = S.shapes.length===0;
+  el.classList.toggle('hidden', !show);
+  if(!show) return;
+  const card=el.querySelector('.ce-card'), sv=document.getElementById('canvas-empty-stitch');
+  if(!card||!sv) return;
+  const w=Math.round(card.offsetWidth)||300, h=Math.round(card.offsetHeight)||150; // fallback if not yet laid out
+  if(sv._w!==w || sv._h!==h){
+    sv.setAttribute('viewBox',`0 0 ${w} ${h}`);
+    sv.innerHTML=frenchBorder(w,h,{inset:9,sp:13,L:8,Wd:2.3});
+    sv._w=w; sv._h=h;
+  }
 }
 
 // ── PEN IN-PROGRESS RENDERING ──
@@ -3641,6 +3726,7 @@ function finishPen(closed=false) {
       hasStitch:false,
       stitchMargin:S.defMargin,
       stitchSpacing:S.defSpacing,
+      color:nextShapeColor(),   // new path picks the next preset colour (resumed paths keep theirs, above)
     };
     sh.id=S.nextId++;
     S.shapes.push(sh);
@@ -4337,6 +4423,17 @@ document.addEventListener('keyup',e=>{
 // Update the toolbar highlight + canvas cursor + status text for tool `t`, WITHOUT touching
 // selection/document state. setTool also clears the selection; cancelPen reuses only this chrome
 // (it must keep the just-finished path selected, which is why it can't call setTool).
+// One-line "how to use this" per tool — shown in the status bar so every tool teaches itself,
+// not just the Pen (which also keeps its richer #pen-hints-sec panel).
+const TOOL_HINTS={
+  select:'Click a piece to select · drag to move · drag a corner to resize · Alt-drag to duplicate',
+  rotate:'Drag a corner ring to rotate · Shift snaps to the rotate-step angle',
+  artboard:'Click an artboard to make it active · drag to reposition · Del removes it',
+  rect:'Click-drag to draw a rectangle · Shift snaps to the grid',
+  pen:'Click for a corner point · click-drag for a curve · Enter to finish — see the Pen Tool panel',
+  text:'Click-drag to make a text box, then type · double-click to re-edit',
+  seam:'Click the edges that join, then “+ New seam from selection” in the Assembly panel'
+};
 function applyToolChrome(t) {
   document.querySelectorAll('.t-btn').forEach(b=>b.classList.remove('active'));
   const btn=document.getElementById('tb-'+t);
@@ -4345,6 +4442,7 @@ function applyToolChrome(t) {
   ['select','rotate','artboard','rect','pen','text','seam'].forEach(k=>{ const b=document.getElementById('tb-'+k); if(b) b.setAttribute('aria-pressed', String(k===t)); });
   wrap.className=''; if(t==='select'||t==='artboard'||t==='seam') wrap.classList.add('cur-select'); else if(t==='text') wrap.classList.add('cur-text');
   ST.tool.textContent=`Tool: ${t.charAt(0).toUpperCase()+t.slice(1)}`;
+  const he=document.getElementById('st-hint'); if(he) he.textContent=TOOL_HINTS[t]||'';
   document.getElementById('pen-hints-sec').style.display=t==='pen'?'':'none';
 }
 function setTool(t) {
@@ -4372,6 +4470,19 @@ function zoomBy(f){
   ST.zoom.textContent=`Zoom: ${Math.round(S.zoom*100)}%`;
 }
 function resetView(){S.zoom=1;S.pan={x:30,y:30};updateTransform();}
+// Frame the ACTIVE artboard centred in the viewport — used on first entry / a new blank doc, so the
+// page (and the empty-canvas prompt over it) sits in the middle instead of hugging the top-left.
+// Zoom is capped at 1 (only ever zooms OUT to fit a large board; a small board stays at 100%).
+function centerOnArtboard(){
+  const ab=S.page; if(!ab) return;
+  const r=cvs.getBoundingClientRect(); if(!r.width||!r.height) return;
+  const pad=40;
+  S.zoom=Math.max(0.05, Math.min((r.width-pad*2)/(ab.w*PX),(r.height-pad*2)/(ab.h*PX),1));
+  S.pan.x=r.width/2-(ab.x+ab.w/2)*S.zoom*PX;
+  S.pan.y=r.height/2-(ab.y+ab.h/2)*S.zoom*PX;
+  updateTransform();
+  if(ST&&ST.zoom) ST.zoom.textContent=`Zoom: ${Math.round(S.zoom*100)}%`;
+}
 function zoomFit(){
   const bb=getFitBox(),r=cvs.getBoundingClientRect(),pad=30;
   const zx=(r.width-pad*2)/(bb.w*PX),zy=(r.height-pad*2)/(bb.h*PX);
@@ -4909,7 +5020,13 @@ function updatePropsPanel() {
   const multi = S.selIds.length>1;
   const sh = multi ? null : getShape(S.selId);
   document.getElementById('multi-sel-msg').style.display = multi?'':'none';
-  document.getElementById('no-sel-msg').style.display  = (sh||multi)?'none':'';
+  const noSel = !(sh||multi);
+  document.getElementById('no-sel-msg').style.display = noSel?'':'none';
+  if(noSel){ // tailor the empty-state copy: a blank doc gets a "start here", a populated doc a "pick one"
+    const empty = !S.shapes.length;
+    document.getElementById('ns-title').textContent = empty ? 'Start your pattern' : 'No shape selected';
+    document.getElementById('ns-sub').textContent  = empty ? 'Draw your first piece:' : 'Click a piece to edit it, or draw a new one:';
+  }
   document.getElementById('sel-props').style.display   = sh?'':'none';
   document.getElementById('sec-stitch').style.display  = (sh&&sh.type!=='text')?'':'none'; // stitch panel only on a stitchable selection (not text)
   if(multi){ updateMultiSelSummary(); return; }
@@ -4992,12 +5109,8 @@ function updatePropsPanel() {
   document.getElementById('pi-stitch').checked=!!sh.hasStitch;
   const ec=shapeEdgeCount(sh);
   const edgeSel = S.selEdge && S.selEdge.id===sh.id && ec>0;
-  document.getElementById('edge-stitch-row').style.display = edgeSel ? '' : 'none';
+  renderEdgeStitchList(sh);
   document.getElementById('edge-hint').style.display = ec>0 ? '' : 'none';
-  if(edgeSel){
-    document.getElementById('pi-edge-stitch').checked = edgeStitched(sh, S.selEdge.edge);
-    document.getElementById('edge-stitch-lbl').textContent = `Stitch edge ${S.selEdge.edge+1} of ${ec}`;
-  }
   // Select-tool seam touchpoint: if the selected edge belongs to a seam, offer a jump to it.
   const sm=document.getElementById('seam-membership');
   if(sm){
@@ -5341,6 +5454,42 @@ function toggleEdgeStitch(on){
   if(!S.selEdge) return;
   const sh=getShape(S.selEdge.id); if(!sh) return;
   pushHist(); setEdgeStitch(sh,S.selEdge.edge,on); renderContent();
+}
+
+// ── Per-edge stitch list (Stitching panel) ───────────────────────────────────
+// A visible, self-documenting alternative to discovering the click-an-edge canvas
+// gesture: one row per edge with a live checkbox, hover-to-locate, click-to-select.
+// Rect edges read Top/Right/Bottom/Left (local frame); paths read Edge N.
+const RECT_EDGE_NAMES=['Top','Right','Bottom','Left'];
+function edgeLabel(sh,e){ return sh.type==='rect' ? (RECT_EDGE_NAMES[e]||`Edge ${e+1}`) : `Edge ${e+1}`; }
+function renderEdgeStitchList(sh){
+  const box=document.getElementById('edge-stitch-list'); if(!box) return;
+  const ec=sh?shapeEdgeCount(sh):0;
+  if(!ec){ if(box._h){ box.innerHTML=''; box._h=''; } box.style.display='none'; return; }
+  box.style.display='';
+  let h='<div class="es-grp">Edges</div>';
+  for(let e=0;e<ec;e++){
+    const on=edgeStitched(sh,e);
+    const shared=sh.id!=null && sharedSeamForEdge(sh.id,e);
+    const sel=S.selEdge && S.selEdge.id===sh.id && S.selEdge.edge===e;
+    h+=`<div class="es-row${sel?' sel':''}" onmouseenter="hoverEdgeRow(${e})" onmouseleave="hoverEdgeRow(-1)" onclick="selectEdgeRow(${e})">`
+      +`<input type="checkbox" ${on?'checked':''} ${shared?'disabled':''} onclick="event.stopPropagation()" onchange="toggleEdgeFromList(${e},this.checked)"`
+      +(shared?' title="Stitched as part of a shared seam"':'')+'>'
+      +`<span class="es-name">${edgeLabel(sh,e)}</span>`
+      +(shared?'<span class="es-tag">seam</span>':'')+'</div>';
+  }
+  // Only touch the DOM when the rendered list actually changes, so a hover-only
+  // re-render (renderContent → updatePropsPanel) doesn't destroy the row under the cursor.
+  if(box._h!==h){ box.innerHTML=h; box._h=h; }
+}
+// Hovering a row glows the matching edge on the canvas (drives the existing S.hoverEdge overlay).
+function hoverEdgeRow(e){ if(S.selId==null) return; if(S.hoverEdge!==e){ S.hoverEdge=e; renderContent(); } }
+// Clicking a row selects that edge (same state a canvas edge-click sets).
+function selectEdgeRow(e){ if(S.selId==null) return; S.selEdge={id:S.selId,edge:e}; renderContent(); }
+// Toggling a row's checkbox stitches/unstitches just that edge.
+function toggleEdgeFromList(e,on){
+  const sh=getShape(S.selId); if(!sh) return;
+  pushHist(); setEdgeStitch(sh,e,on); S.selEdge={id:sh.id,edge:e}; renderContent();
 }
 
 function applySpacingPreset(){
@@ -6152,6 +6301,7 @@ restorePropsWidth();
 restoreTheme();   // sets S.light + body.light from localStorage, then repaints
 initAccessibility(); // toolbar/menubar ARIA + click-to-open keyboard-navigable menus
 renderContent();
+if(!S.shapes.length) centerOnArtboard(); // first launch: frame the default artboard centred, not top-left
 updateHistStatus();
 renderTabs();                           // paint the (single) initial document tab
 S._launchRecovery = readAutoSaveInfo(); // capture any recoverable session (offered on the welcome screen, no prompt)

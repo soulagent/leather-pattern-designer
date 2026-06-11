@@ -164,10 +164,19 @@ window.__SMOKE__ = function (spec) {
     // ── per-shape outline colour ──
     color() {
       reset();
-      addShape({ type: 'rect', x: 0, y: 0, w: 50, h: 50 });
-      const r = S.shapes[0];
-      assert('colour: defaults when unset', shapeColor(r) === DEFAULT_SHAPE_COLOR, `got ${shapeColor(r)}`);
+      // shapeColor() still falls back to the default for a shape with no explicit colour
+      assert('colour: shapeColor falls back to default when unset', shapeColor({ type: 'rect', x: 0, y: 0, w: 5, h: 5 }) === DEFAULT_SHAPE_COLOR, `got ${shapeColor({ type: 'rect' })}`);
       assert('colour: palette has entries', Array.isArray(SHAPE_COLORS) && SHAPE_COLORS.length >= 4, `n=${SHAPE_COLORS.length}`);
+      // new shapes cycle the presets, looping back after the last
+      _colorCycle = 0;
+      assert('colour: cycle starts at preset[0]', nextShapeColor() === SHAPE_COLORS[0], 'start');
+      assert('colour: cycle advances to preset[1]', nextShapeColor() === SHAPE_COLORS[1], 'advance');
+      _colorCycle = SHAPE_COLORS.length - 1; nextShapeColor();
+      assert('colour: cycle wraps back to preset[0]', nextShapeColor() === SHAPE_COLORS[0], 'wrap');
+      _colorCycle = 0;
+      const r = { type: 'rect', x: 0, y: 0, w: 50, h: 50 }; addShape(r);
+      assert('colour: addShape assigns the cycling default', r.color === SHAPE_COLORS[0], `got ${r.color}`);
+      // an explicit colour overrides the cycle + survives a round-trip
       r.color = '#e84393';
       assert('colour: explicit value used', shapeColor(r) === '#e84393', `got ${shapeColor(r)}`);
       const wire = JSON.parse(JSON.stringify(buildSaveData()));
@@ -238,6 +247,62 @@ window.__SMOKE__ = function (spec) {
       assert('per-edge: all-on compacts to undefined', r2.stitchEdges === undefined && r2.hasStitch === true, `stitchEdges=${r2.stitchEdges}`);
       [0, 1, 2, 3].forEach(e => setEdgeStitch(r2, e, false));
       assert('per-edge: all-off clears hasStitch', r2.hasStitch === false, `hasStitch=${r2.hasStitch}`);
+      // ── edge-list UI (todo #1): labels + row rendering mirror per-edge state ──
+      assert('edge label: rect edges read T/R/B/L',
+        edgeLabel(r2, 0) === 'Top' && edgeLabel(r2, 1) === 'Right' && edgeLabel(r2, 2) === 'Bottom' && edgeLabel(r2, 3) === 'Left', 'rect labels wrong');
+      assert('edge label: path edges numbered', edgeLabel({ type: 'path' }, 0) === 'Edge 1', 'path label wrong');
+      r2.hasStitch = true; r2.stitchEdges = [0, 2]; // top + bottom only
+      renderEdgeStitchList(r2);
+      const rows = document.querySelectorAll('#edge-stitch-list .es-row');
+      assert('edge list: one row per edge', rows.length === 4, `rows=${rows.length}`);
+      const chk = [...rows].map(r => r.querySelector('input').checked);
+      assert('edge list: checkboxes mirror edgeStitched', chk[0] && !chk[1] && chk[2] && !chk[3], `checked=${chk}`);
+    },
+
+    // ── empty-state invitation (todo #2): no-selection panel is an actionable prompt ──
+    emptystate() {
+      S.shapes = []; S.selIds = []; S.selId = null;
+      updatePropsPanel();
+      const ns = document.getElementById('no-sel-msg');
+      assert('empty-state: shown when nothing is selected', ns.style.display !== 'none', `display=${ns.style.display}`);
+      assert('empty-state: blank doc invites a first piece', document.getElementById('ns-title').textContent === 'Start your pattern', document.getElementById('ns-title').textContent);
+      assert('empty-state: offers three draw tools', document.querySelectorAll('#no-sel-msg .ns-tool').length === 3, 'tool count');
+      S.shapes = [{ type: 'rect', id: 1, x: 0, y: 0, w: 10, h: 10 }]; S.nextId = 2; S.selIds = []; S.selId = null;
+      updatePropsPanel();
+      assert('empty-state: populated doc says no selection', document.getElementById('ns-title').textContent === 'No shape selected', document.getElementById('ns-title').textContent);
+    },
+
+    // ── toolbar + tool UX (todos #3–#6) ──
+    toolux() {
+      // #3 per-tool status hints
+      assert('tool hints: map covers the tools', ['select', 'rotate', 'rect', 'pen', 'text', 'seam'].every(k => TOOL_HINTS[k]), 'missing hint');
+      applyToolChrome('rotate');
+      assert('tool hints: status hint set for the active tool', /rotate/i.test(document.getElementById('st-hint').textContent), document.getElementById('st-hint').textContent);
+      // #4 unified icons + Delete pulled from the tool column
+      const tbtns = [...document.querySelectorAll('#toolbar .t-btn')];
+      assert('toolbar: no Delete button in the tool column', !tbtns.some(b => /delete/i.test(b.getAttribute('data-tip') || '')), 'delete still present');
+      assert('toolbar: tools use inline svg icons', document.querySelectorAll('#toolbar .t-btn svg').length >= 6, 'too few svg icons');
+      // #5 shortcut key badges
+      assert('toolbar: shortcut key badges present', document.querySelectorAll('#toolbar .t-key').length === 6, `keys=${document.querySelectorAll('#toolbar .t-key').length}`);
+      // #6 empty-canvas prompt
+      S.shapes = [];
+      updateCanvasEmpty();
+      const ce = document.getElementById('canvas-empty');
+      assert('empty-canvas: prompt shown on a blank document', !ce.classList.contains('hidden'), 'hidden when empty');
+      assert('empty-canvas: french-stitch border built', document.querySelectorAll('#canvas-empty-stitch rect').length > 0, 'no slits');
+      S.shapes = [{ type: 'rect', id: 1, x: 0, y: 0, w: 10, h: 10 }];
+      updateCanvasEmpty();
+      assert('empty-canvas: prompt hidden once a piece exists', ce.classList.contains('hidden'), 'still shown');
+      // #6 entry view: the active artboard is framed centred (not hugging the top-left)
+      S.shapes = []; S.pan = { x: -999, y: -999 }; S.zoom = 1;
+      centerOnArtboard();
+      const rc = document.getElementById('cvs').getBoundingClientRect(), ab = S.page;
+      assert('entry view: artboard centred horizontally', Math.abs((S.pan.x + (ab.x + ab.w / 2) * S.zoom * PX) - rc.width / 2) < 1, 'off-centre x');
+      assert('entry view: artboard centred vertically', Math.abs((S.pan.y + (ab.y + ab.h / 2) * S.zoom * PX) - rc.height / 2) < 1, 'off-centre y');
+      // #8 Settings reachable via a menubar gear (moved out of the Edit menu)
+      assert('settings: menubar gear present', !!document.getElementById('mb-settings'), 'no gear');
+      // #9 Assembly panel points to the 3D companion app
+      assert('assembly: points to Leather Studio 3D', /Leather Studio 3D/.test(document.getElementById('body-assembly').textContent), 'no 3D pointer');
     },
 
     // ── stitch dot count sanity: circle ──
@@ -1742,7 +1807,7 @@ window.__SMOKE__ = function (spec) {
 
   // Tier → ordered feature list. quick = fast logic; full = everything.
   const ORDER = ['core', 'history', 'saveload', 'page', 'color', 'snap',
-    'stitch-rect', 'peredge', 'stitch-circle', 'stitch-path', 'stitch-convert', 'stitch-acute', 'stitch-radii', 'anchor-type', 'pen-grid', 'pen-anchor', 'pen-close', 'pen-resume', 'path-handles', 'label-fit', 'multiselect', 'duplicate', 'stitch-inputs', 'layers', 'layer-groups', 'text', 'home', 'help', 'quickstart', 'artboards', 'tabs', 'rotate', 'stitch-guard', 'seam', 'bbox', 'a11y', 'readability'];
+    'stitch-rect', 'peredge', 'stitch-circle', 'stitch-path', 'stitch-convert', 'stitch-acute', 'stitch-radii', 'anchor-type', 'pen-grid', 'pen-anchor', 'pen-close', 'pen-resume', 'path-handles', 'label-fit', 'multiselect', 'duplicate', 'emptystate', 'toolux', 'stitch-inputs', 'layers', 'layer-groups', 'text', 'home', 'help', 'quickstart', 'artboards', 'tabs', 'rotate', 'stitch-guard', 'seam', 'bbox', 'a11y', 'readability'];
   const TIERS = { quick: ['core', 'history'], full: ORDER };
 
   // Resolve the spec into a list of feature names.
