@@ -136,7 +136,7 @@ window.__SMOKE__ = function (spec) {
       assert('round-trip → per-piece thickness preserved', S.shapes[0].thickness === 1.6, `thickness=${S.shapes[0].thickness}`);
       assert('seamForEdge → derived map resolves a member', seamForEdge(S.shapes[0].id, 0) === S.assembly.seams[0], 'map miss');
       assert('seamForEdge → pruned/absent edge = null', seamForEdge(S.shapes[1].id, 0) === null, 'circle edge unexpectedly mapped');
-      assert('v14 file (no assembly) → empty assembly default', normAssembly(undefined).seams.length === 0 && normAssembly(undefined).version === 4);
+      assert('v14 file (no assembly) → empty assembly default', normAssembly(undefined).seams.length === 0 && normAssembly(undefined).version === 5);
       // assembly-schema v4: mm partial join (offset + reference end) survives normalise/round-trip
       const mmM = normMember({ shape: 8, edge: 1, offset: 12, from: 'end' });
       assert('round-trip → mm offset/from preserved', mmM.offset === 12 && mmM.from === 'end', JSON.stringify(mmM));
@@ -1617,7 +1617,48 @@ window.__SMOKE__ = function (spec) {
       applyLoadedData(wireU7);
       const u7r = S.assembly.seams[0];
       assert('U7: shared stitch survives round-trip', u7r.stitch && u7r.stitch.shared === true, JSON.stringify(u7r.stitch));
-      assert('U7: assembly schema bumped to v3', S.assembly.version >= 3, `v=${S.assembly.version}`);
+      assert('U7: assembly schema bumped to v5', S.assembly.version >= 5, `v=${S.assembly.version}`);
+
+      // ── Card-holder stack: 3 rects sharing a left-edge spine, each piece also independently
+      // stitched on its other edges. Regression guard for "holes misalign/double": within any one
+      // piece no two holes may sit closer than spacing*0.6, and all members must share the layout. ──
+      reset();
+      S.assembly.seams = []; S._seamMap = new Map(); S.activeSeam = null;
+      addShape({ type: 'rect', x: 0, y: 0, w: 100, h: 70 });    // back
+      addShape({ type: 'rect', x: 0, y: 120, w: 100, h: 45 });  // front pocket
+      addShape({ type: 'rect', x: 0, y: 240, w: 100, h: 45 });  // inner pocket
+      const chIds = S.shapes.slice(0, 3).map(s => s.id);
+      S.seamSel = chIds.map(id => ({ id, edge: 3 }));            // left edge of each = the spine
+      createSeamFromSelection();
+      const chSeam = S.assembly.seams[0];
+      setSeamShared(chSeam.id, true);
+      S.shapes.slice(0, 3).forEach(s => { s.hasStitch = true; });   // all edges independently stitched too
+      const chLay = seamStitchLayout(S.assembly.seams[0]);
+      const chRuns = chIds.map(id => chLay.get(id + ':3'));
+      assert('cardholder: all 3 members laid out', chRuns.every(r => r && r.length >= 2));
+      assert('cardholder: members share hole count', chRuns.every(r => r.length === chRuns[0].length), chRuns.map(r => r && r.length).join('/'));
+      // holes coincide at matching fractions across members (same Y offsets along the shared spine)
+      const chSp = S.assembly.seams[0].stitch.spacing, chMin = chSp * 0.6;
+      let chDouble = 0;
+      S.shapes.slice(0, 3).forEach(s => {
+        const sf = stitchFor(s); if (!sf) return;
+        for (let i = 0; i < sf.pts.length; i++) for (let j = i + 1; j < sf.pts.length; j++)
+          if (Math.hypot(sf.pts[i].x - sf.pts[j].x, sf.pts[i].y - sf.pts[j].y) < chMin) chDouble++;
+      });
+      assert('cardholder: no doubled holes (>= spacing*0.6 apart)', chDouble === 0, `pairs too close=${chDouble}`);
+      assert('cardholder: shared-run connector emitted', (() => { renderContent(); return document.getElementById('vp').innerHTML.includes('polyline'); })(), 'no run polyline');
+      // Unequal-margin corner: the back piece's own edges use a 5mm margin while the seam uses the
+      // 3mm default, so the perpendicular corner hole and the seam end hole land ~2.8mm apart — the
+      // doubling the user saw. The seam owns its corners, so the independent corner must drop.
+      S.shapes[0].stitchMargin = 5;
+      let chDbl2 = 0; { const sf = stitchFor(S.shapes[0]);
+        // tighter than the nominal spacing: a corner double lands ~sqrt(2)*|5-3|=2.8mm apart, well
+        // inside the 3.38mm interval, so spacing*0.9 catches it (and the structural fix removes it).
+        for (let i = 0; i < sf.pts.length; i++) for (let j = i + 1; j < sf.pts.length; j++)
+          if (Math.hypot(sf.pts[i].x - sf.pts[j].x, sf.pts[i].y - sf.pts[j].y) < chSp * 0.9) chDbl2++; }
+      assert('cardholder: no double at a seam corner with a mismatched edge margin', chDbl2 === 0, `pairs too close=${chDbl2}`);
+      S.shapes[0].stitchMargin = undefined;
+
       // partial overlap: a sub-span member still shares the layout (anchored)
       reset();
       S.assembly.seams = []; S._seamMap = new Map(); S.activeSeam = null;
@@ -1647,6 +1688,39 @@ window.__SMOKE__ = function (spec) {
       setMemberOffset(ps.id, 0, '0'); setMemberFrom(ps.id, 0, 'end');
       pl = seamStitchLayout(seamOf()); pa = pl.get(u7p + ':0');
       assert('U6mm: from=end → run in the last 50mm', pa.every(p => p.x >= 49.999 && p.x <= 100.001), `xs=${pa.map(p=>p.x.toFixed(1))}`);
+
+      // ── v5 guide: a directional alignment annotation (multi-edge → single target edge). No
+      // stitching, no length-mismatch flag; members[0] is the target, setSeamTarget reorders. ──
+      reset();
+      S.assembly.seams = []; S._seamMap = new Map(); S.activeSeam = null;
+      addShape({ type: 'rect', x: 0, y: 0, w: 100, h: 10 });    // long target piece
+      addShape({ type: 'rect', x: 0, y: 40, w: 20, h: 10 });    // small source tab
+      const gT = S.shapes[0].id, gS = S.shapes[1].id;
+      S.seamSel = [{ id: gT, edge: 0 }, { id: gS, edge: 0 }];
+      createSeamFromSelection();
+      const gSeam = S.assembly.seams[0];
+      setSeamType(gSeam.id, 'guide');
+      assert('guide: type set to guide', S.assembly.seams[0].type === 'guide');
+      assert('guide: unequal lengths NOT flagged', seamLengthIssues(S.assembly.seams[0]).length === 0);
+      assert('guide: target is member 0', S.assembly.seams[0].members[0].shape === gT);
+      // setSeamTarget moves the source to the front → it becomes the target
+      setSeamTarget(gSeam.id, 1);
+      assert('guide: setSeamTarget reorders to index 0', S.assembly.seams[0].members[0].shape === gS, JSON.stringify(S.assembly.seams[0].members.map(m => m.shape)));
+      setSeamTarget(gSeam.id, 1);   // put it back so the long edge is the target again
+      // a guide owns no stitching — its member edges stitch independently if the shape says so
+      assert('guide: does not own stitching (edgeStitched unaffected)', sharedSeamForEdge(gT, 0) === null);
+      // guide renders its alignment overlay on the canvas (all seams show in the Seam tool)
+      setTool('seam'); renderContent();
+      assert('guide: canvas overlay drawn (seam-aid)', document.getElementById('vp').innerHTML.includes('seam-aid'));
+      // round-trip: type + members survive, assembly schema is v5
+      const wireG = JSON.parse(JSON.stringify(buildSaveData()));
+      applyLoadedData(wireG);
+      assert('guide: type survives round-trip', S.assembly.seams[0].type === 'guide');
+      assert('guide: 2 members survive round-trip', S.assembly.seams[0].members.length === 2);
+      assert('guide: assembly schema is v5', S.assembly.version >= 5, `v=${S.assembly.version}`);
+      // restore the scene the folds section below expects: a rect at origin (id resets to 1 = rectId)
+      reset(); addShape({ type: 'rect', x: 0, y: 0, w: 100, h: 80 });
+      S.assembly.seams = []; S._seamMap = new Map(); S.activeSeam = null;
 
       // ── Folds (v15): crease authoring via the Seam tool's fold sub-mode ──
       setTool('seam'); setFoldMode(true);

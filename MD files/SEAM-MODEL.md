@@ -477,5 +477,38 @@ unchanged (absent `stitch` = independent stitching).
 
 ---
 
+## 14. Assembly-schema v5 — edge reference guides (TODO 4, 2026-06-11)
+
+The seam model so far only expressed **physical joins** (stitch / fold / glue). Some relationships are
+**alignment only**: a piece's edges should sit *against* another edge so the 3D preview can position
+them, but there's no stitching or crease (the `MultiEdge-To-SingleEdge.png` T-pocket: two tabs aligning
+to one long edge). v5 adds a fourth seam **`type`**:
+
+```jsonc
+{ "id": 3, "name": "tab align", "type": "guide",
+  "members": [ { "shape": 1, "edge": 2 },          // members[0] = the TARGET / reference edge
+               { "shape": 2, "edge": 0 },          // sources align TO the target
+               { "shape": 3, "edge": 0 } ] }
+```
+
+- **`type: "guide"`** — a **non-joining, directional alignment annotation**. `members[0]` is the
+  **target/reference** edge; every other member aligns to it. No stitching, no fold.
+- **Authoring (Pattern Designer):** picked + grouped with the normal Seam tool; the Type dropdown sets
+  `guide`; the editor marks member 0 as *target* and offers **⤒ make-target** (`setSeamTarget` moves a
+  member to index 0). Renders as a solid heavier target edge + dashed source edges + a dashed direction
+  arrow per source (screen-only `seam-aid`). Partial `fit`/`anchor` + per-member `offset` remain
+  available to pin a source to a **sub-span** of the target.
+- **Behaviour:** guides never own or suppress stitching (`sharedSeamForEdge`/`edgeStitched` gate on
+  `type==='stitch'`), and `seamLengthIssues` returns `[]` for guides (unequal lengths are by design).
+- **Consumer (Leather Studio 3D) — NOT YET BUILT:** a guide should position each source piece so its
+  member edge aligns to the target member's edge (nearest-endpoint match, honouring any `offset`
+  sub-span), as an **alignment-only** placement — like a soft seam: it moves the piece but adds no
+  thread/holes and is never gap-flagged. This is the named follow-up (separate repo).
+
+No `.lpd` **file** bump (still v15); internal `assembly.version` advances 4→5. v1–v4 assemblies load
+unchanged (no `guide`-type seams).
+
+---
+
 _This document is the contract between the two apps. Keep it in sync if the edge indexing or the
 `assembly` shape ever changes; the 3D app's loader depends on it._

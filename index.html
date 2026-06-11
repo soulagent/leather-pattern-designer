@@ -739,7 +739,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.10</div>
+  <div id="app-title">Leather Pattern Designer v0.8.11</div>
   <button id="mb-settings" class="mb-icon-btn" title="Settings" aria-label="Settings" onclick="openSettings()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
@@ -1205,8 +1205,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.10';
-const BUILD_TAG = 'slate-quail-V21';
+const APP_VERSION = 'v0.8.11';
+const BUILD_TAG = 'verdant-shrike-V22';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -1438,7 +1438,7 @@ const S = {
   // (2+ members = a seam, 1 = an edge finish); `folds` = interior crease lines. Edge refs are
   // {shape:id, edge:int} — the SAME indexing as per-edge stitching. Consumed read-only by Leather
   // Studio 3D. See MD files/SEAM-MODEL.md.
-  assembly:{version:2, seams:[], folds:[]},
+  assembly:{version:5, seams:[], folds:[]},
   _seamMap:new Map(),    // derived "shapeId:edge" -> seam; rebuilt by validateSeams (NOT saved, NOT a DOC_KEY)
   movingArtboard:null,   // {id, ox, oy} drag state while moving an artboard
   layerCollapsed:{},     // {artboardId|'none': true} — collapsed groups in the Layers panel
@@ -1514,7 +1514,7 @@ function blankDoc(){
   return { shapes:[], nextId:1, hist:[], future:[], pan:{x:30,y:30}, zoom:1,
     artboards:[{id:1, name:'Untitled', preset:pg.preset, orient:pg.orient, w:pg.w, h:pg.h, x:0, y:0}],
     activeArtboard:1, nextArtboardId:2, selArtboard:null, layerCollapsed:{},
-    assembly:{version:2, seams:[], folds:[]},
+    assembly:{version:5, seams:[], folds:[]},
     fileHandle:null, nativePath:null,
     defMargin:S.defMargin, defSpacing:S.defSpacing, stitchStyle:S.stitchStyle, histLimit:S.histLimit,
     snapMM:S.snapMM, snapShapes:S.snapShapes, rotStep:S.rotStep, dimFontSize:S.dimFontSize,
@@ -1530,7 +1530,7 @@ function syncActiveTabMeta(){ const t=S.tabs[S.activeTab]; if(t) t.title = tabTi
 // Shared refresh after the document slice in S is replaced (switch / new / close / load).
 function afterDocSwap(){
   S.selEdge=null; S.selAnchor=null; S.seamSel=[]; S.activeSeam=null; S.activeFold=null; S.foldDraft=null;
-  if(!S.assembly) S.assembly={version:2, seams:[], folds:[]};
+  if(!S.assembly) S.assembly={version:5, seams:[], folds:[]};
   validateSeams({quiet:true});   // rebuild the derived edge->seam map for the now-active doc
   applyPageDims(); updatePageMenu(); updatePrintPageSize();
   renderContent(); updateHistStatus(); renderTabs();
@@ -1861,7 +1861,7 @@ function restoreHist(snap) {
   if (!S.artboards.some(a=>a.id===S.activeArtboard)) S.activeArtboard = S.artboards[0].id;
   if (S.selArtboard!=null && !S.artboards.some(a=>a.id===S.selArtboard)) S.selArtboard = null;
   S.nextArtboardId = Math.max(S.nextArtboardId, Math.max(...S.artboards.map(a=>a.id)) + 1);
-  S.assembly = data.assembly && typeof data.assembly==='object' ? data.assembly : {version:2, seams:[], folds:[]};
+  S.assembly = data.assembly && typeof data.assembly==='object' ? data.assembly : {version:5, seams:[], folds:[]};
   validateSeams({quiet:true});   // rebuild the derived edge->seam map (restored state was already valid)
   updatePageMenu(); updatePrintPageSize();
 }
@@ -2224,6 +2224,9 @@ function edgePointAt(sh,e,t){
 }
 // Local-frame midpoint of an edge (rect: corner midpoint; path: cubic at t=0.5). For seam badges.
 function edgeMidpoint(sh,e){ return edgePointAt(sh,e,0.5); }
+// Edge midpoint in WORLD space (rotation applied) — guide direction connectors cross shapes, so
+// they can't be drawn inside a single shape's wrapRot transform.
+function worldEdgeMid(sh,e){ const p=edgeMidpoint(sh,e), c=rotPivot(sh); return rotPt(p.x,p.y,c.x,c.y,sh.rot||0); }
 // SVG `d` for the [t0,t1] sub-span of an edge, offset perpendicular by `off` mm toward the
 // shape interior (right-hand side of edge travel — for a CW rect that's inward). Used to draw the
 // bold "joined portion" band beside a partial seam's edge so the % span is visible on the canvas.
@@ -2443,7 +2446,7 @@ function setShapeStitch(sh, on){ sh.hasStitch=on; sh.stitchEdges=undefined; }
 // Leather Studio 3D mirrors this read-only.
 function validateSeams(opts){
   opts = opts || {};
-  if(!S.assembly || typeof S.assembly!=='object') S.assembly = {version:2, seams:[], folds:[]};
+  if(!S.assembly || typeof S.assembly!=='object') S.assembly = {version:5, seams:[], folds:[]};
   const A = S.assembly;
   const map = new Map();
   let dropped = 0;
@@ -2544,6 +2547,21 @@ function sharedSeamHolesForShape(s){
   }
   return out;
 }
+// Same holes, but kept GROUPED per member edge with the owning seam's colour, so the renderer can
+// draw a connecting "running stitch" line through each run (a screen-only aid that makes a shared
+// seam read as one continuous sewn run rather than loose dots). Local frame.
+function sharedSeamRunsForShape(s){
+  if(s.id==null || !S.assembly) return [];
+  const runs=[];
+  for(const seam of S.assembly.seams){
+    if(seam.type!=='stitch' || !seam.stitch || !seam.stitch.shared) continue;
+    if(!seam.members.some(m=>m.shape===s.id)) continue;
+    const layout=seamStitchLayout(seam); if(!layout) continue;
+    const col=seamColor(seam.id);
+    for(const m of seam.members){ if(m.shape===s.id){ const pts=layout.get(m.shape+':'+m.edge); if(pts&&pts.length>1) runs.push({col, pts}); } }
+  }
+  return runs;
+}
 
 function stitchRect(sh) {
   const m=sh.stitchMargin??S.defMargin, sp=sh.stitchSpacing??S.defSpacing;
@@ -2563,10 +2581,17 @@ function stitchRect(sh) {
     // (no remainder dumped at one corner — that was what offset the two columns).
     // Every hole (incl. the corner) follows the EDGE angle, so the corner slit matches its run.
     const N=Math.max(1,Math.round(len/sp)), step=len/N;
-    for(let i=0;i<N;i++){ const d=i*step; pts.push({x:a.x+ux*d, y:a.y+uy*d, forced:i===0, hl:i===0, a:ang}); }
+    // A shared-stitch seam OWNS every corner it touches (its end hole is the corner's one hole). So
+    // the perpendicular independent edge must NOT also place a coincident corner hole: with equal
+    // margins they overlap (harmless), but with different margins they land a margin apart → a
+    // visible double. Skip this edge's start hole if the previous edge is a seam, and skip the
+    // far-corner push if the next edge is a seam — the seam covers those corners.
+    const prevSeam = sh.id!=null && sharedSeamForEdge(sh.id,(e+3)%4);
+    const nextSeam = sh.id!=null && sharedSeamForEdge(sh.id,(e+1)%4);
+    for(let i=0;i<N;i++){ if(i===0 && prevSeam) continue; const d=i*step; pts.push({x:a.x+ux*d, y:a.y+uy*d, forced:i===0, hl:i===0, a:ang}); }
     // the far corner is normally placed by the next edge's start; if that edge isn't
     // stitched, place it here so an isolated stitched edge ends cleanly on its corner.
-    if(!edgeStitched(sh,(e+1)%4)) pts.push({x:b.x, y:b.y, forced:true, hl:true, a:ang});
+    if(!edgeStitched(sh,(e+1)%4) && !nextSeam) pts.push({x:b.x, y:b.y, forced:true, hl:true, a:ang});
     path+=`M${a.x.toFixed(2)},${a.y.toFixed(2)} L${b.x.toFixed(2)},${b.y.toFixed(2)} `;
   }
   if(!pts.length) return null;
@@ -3179,6 +3204,13 @@ function renderContent() {
     let sg=shapeBody(s, sel, s.id===S.hoverShape && !sel);
     const st=stitchFor(s);
     if(st) sg+=renderStitchOverlay(st);
+    // Shared-stitch run connector (screen-only): a faint line threading each shared-seam member's
+    // holes in order, so the seam reads as ONE continuous sewn run — and so a shared edge is
+    // distinguishable from a plain stitched edge even in the Select tool. Stripped from print/export.
+    for(const run of sharedSeamRunsForShape(s)){
+      const pts=run.pts.map(p=>`${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+      sg+=`<polyline class="seam-aid" points="${pts}" fill="none" stroke="${run.col}" stroke-opacity="0.55" stroke-width="${1.3/(S.zoom*PX)}" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
     if(s.showLabel) sg+=shapeLabel(s);
     h+=wrapRot(s, sg);
   }
@@ -3279,6 +3311,33 @@ function renderContent() {
     for(const seam of seams){
       const col=seamColor(seam.id), active=seam.id===S.activeSeam;
       const bad=new Set(seamLengthIssues(seam).map(x=>x.i));
+      // v5 guide: a directional alignment annotation. The TARGET edge (member 0) draws as a solid
+      // heavier line; SOURCE edges draw dashed, each with a dashed arrow pointing at the target — so
+      // the "these align TO that" relationship reads at a glance. Screen-only (class `seam-aid`).
+      if(seam.type==='guide'){
+        const tgt=getShape(seam.members[0]&&seam.members[0].shape);
+        const tMid=tgt?worldEdgeMid(tgt,seam.members[0].edge):null;
+        const dash=`stroke-dasharray="${4/(S.zoom*PX)} ${2.6/(S.zoom*PX)}"`;
+        seam.members.forEach((m,mi)=>{
+          const s=getShape(m.shape); if(!s) return;
+          const d=edgePathD(s,m.edge), isTgt=mi===0;
+          let g=`<path class="seam-aid" d="${d}" fill="none" stroke="${col}" stroke-opacity="${active?0.95:0.6}" stroke-width="${(isTgt?(active?4.6:3):(active?2.8:1.8))/(S.zoom*PX)}" ${isTgt?'':dash} vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+          if(mi===0){ const mid=edgeMidpoint(s,m.edge);
+            g+=`<text class="seam-aid" x="${mid.x}" y="${mid.y-6/(S.zoom*PX)}" fill="${col}" font-size="${11/(S.zoom*PX)}" font-family="system-ui" text-anchor="middle" paint-order="stroke" stroke="${halo}" stroke-width="${2.5/(S.zoom*PX)}" stroke-linejoin="round">${escapeXML(seam.name)}</text>`;
+          }
+          h+=wrapRot(s, g);
+          // Direction arrow source→target (world space — crosses two shapes).
+          if(!isTgt && tMid){
+            const sMid=worldEdgeMid(s,m.edge);
+            let vx=tMid.x-sMid.x, vy=tMid.y-sMid.y; const vL=Math.hypot(vx,vy)||1; vx/=vL; vy/=vL;
+            const tip={x:tMid.x-vx*(3.5/(S.zoom*PX)), y:tMid.y-vy*(3.5/(S.zoom*PX))}; // stop short of the edge
+            const ah=4/(S.zoom*PX), px=-vy, py=vx;
+            h+=`<path class="seam-aid" d="M${sMid.x},${sMid.y} L${tip.x},${tip.y}" fill="none" stroke="${col}" stroke-opacity="${active?0.9:0.55}" stroke-width="${1.6/(S.zoom*PX)}" ${dash} vector-effect="non-scaling-stroke"/>`;
+            h+=`<path class="seam-aid" d="M${tip.x},${tip.y} L${tip.x-vx*ah+px*ah*0.6},${tip.y-vy*ah+py*ah*0.6} L${tip.x-vx*ah-px*ah*0.6},${tip.y-vy*ah-py*ah*0.6} Z" fill="${col}" fill-opacity="${active?0.9:0.55}"/>`;
+          }
+        });
+        continue;
+      }
       seam.members.forEach((m,mi)=>{
         const s=getShape(m.shape); if(!s) return;
         const d=edgePathD(s,m.edge);
@@ -4692,12 +4751,13 @@ function renderArtboards(){
 // ── Assembly / seams panel (v15) ────────────────────────────────────────────
 // Stable per-seam colour from its id (golden-angle hue spread → distinct neighbours).
 function seamColor(id){ return `hsl(${(id*137.508)%360} 72% 55%)`; }
-const SEAM_TYPE_BADGE={stitch:'✄', fold:'⟋', glue:'●'};
+const SEAM_TYPE_BADGE={stitch:'✄', fold:'⟋', glue:'●', guide:'⇲'};
 const SEAM_LEN_TOL=1.5; // mm — flag a join whose mated edges differ in length by more than this
 // Tier-1 hint, computable in the flat 2D layout: members of a multi-edge join whose edge length is
 // more than SEAM_LEN_TOL shorter than the longest member → can't sew/match cleanly. (Gap/orphan
 // detection needs the pieces positioned, so that lives in the 3D app, not here.)
 function seamLengthIssues(seam){
+  if(seam.type==='guide') return [];    // v5: a guide aligns short edges TO a longer target — unequal by design
   if(seam.fit==='partial') return [];   // U6: intentional unequal join — mismatch is expected, don't flag
   const ms=seam.members.map((m,i)=>{ const sh=getShape(m.shape); return sh?{i, sh, edge:m.edge, len:edgeLength(sh,m.edge)}:null; }).filter(Boolean);
   if(ms.length<2) return [];
@@ -4765,7 +4825,9 @@ function seamEditorHTML(seam){
   const opt=(v,lbl)=>`<option value="${v}"${v===seam.type?' selected':''}>${lbl}</option>`;
   let h=`<div class="p-grp" style="margin-top:10px;display:flex;align-items:center;gap:6px"><span class="seam-chip" style="background:${seamColor(seam.id)}"></span>Editing seam</div>`;
   h+=`<div class="p-row"><span class="p-lbl">Name</span><input class="p-inp" id="seam-name" type="text" value="${escapeXML(seam.name)}" onchange="renameSeam(${seam.id}, this.value)"></div>`;
-  h+=`<div class="p-row"><span class="p-lbl">Type</span><select class="p-sel" id="seam-type" onchange="setSeamType(${seam.id}, this.value)">${opt('stitch','Stitch (sewn)')}${opt('fold','Fold (crease)')}${opt('glue','Glue')}</select></div>`;
+  h+=`<div class="p-row"><span class="p-lbl">Type</span><select class="p-sel" id="seam-type" onchange="setSeamType(${seam.id}, this.value)">${opt('stitch','Stitch (sewn)')}${opt('fold','Fold (crease)')}${opt('glue','Glue')}${opt('guide','Guide (align only)')}</select></div>`;
+  const guide = seam.type==='guide';
+  if(guide) h+=`<p class="p-note" style="opacity:.7;margin-top:0">Alignment only — no stitching or fold. The <b>first edge</b> is the <b>target</b>; the others align to it (use <b>⤒</b> to set a different target). Gives Leather Studio 3D something to position against.</p>`;
   h+=`<div class="p-pair">`
     +`<div class="p-field"><span class="p-fl-w">Order</span><input class="p-inp" id="seam-order" type="number" step="1" value="${seam.order==null?'':seam.order}" placeholder="—" title="Assembly step order" onchange="setSeamField(${seam.id},'order',this.value)"></div>`
     +`<div class="p-field"><span class="p-fl-w">Allow.</span><input class="p-inp" id="seam-allow" type="number" step="0.1" min="0" value="${seam.allowance==null?'':seam.allowance}" placeholder="${S.defMargin||3}" title="Seam allowance (mm); blank = default margin" onchange="setSeamField(${seam.id},'allowance',this.value)"></div>`
@@ -4800,7 +4862,10 @@ function seamEditorHTML(seam){
   if(!seam.members.length) h+=`<p class="p-note" style="opacity:.75">No edges. Pick edges with the Seam tool, then “Add”.</p>`;
   seam.members.forEach((m,i)=>{
     const sh=getShape(m.shape), nm=sh?layerName(sh):'(missing)', w=bad.has(i);
-    h+=`<div class="lay-row"><span class="lay-name"${w?' style="color:#e74c3c"':''} title="${nm}">${w?'⚠ ':''}${nm} · edge ${m.edge+1}</span>`
+    const isTarget=guide && i===0, tgtTag=isTarget?' <span class="es-tag" style="color:#22d3ee;border-color:#22d3ee;opacity:1">target</span>':'';
+    const mkTgt=(guide && i>0) ? `<button class="lay-arr" title="Make this the target edge" onclick="setSeamTarget(${seam.id},${i})">⤒</button>` : '';
+    h+=`<div class="lay-row"><span class="lay-name"${w?' style="color:#e74c3c"':''} title="${nm}">${w?'⚠ ':''}${nm} · edge ${m.edge+1}${tgtTag}</span>`
+      +mkTgt
       +`<button class="lay-arr" title="Find on canvas" onclick="locateSeamMember(${m.shape},${m.edge})">◎</button>`
       +`<button class="lay-arr" title="Remove from seam" onclick="removeSeamMember(${seam.id},${i})">✕</button></div>`;
     if(partial && sh){
@@ -4836,7 +4901,7 @@ function renameSeam(id, name){
   pushHist(); s.name=name; renderContent();
 }
 function setSeamType(id, type){
-  if(!['stitch','fold','glue'].includes(type)) return;
+  if(!['stitch','fold','glue','guide'].includes(type)) return;
   const s=S.assembly.seams.find(x=>x.id===id); if(!s||s.type===type) return;
   pushHist(); s.type=type; renderContent();
 }
@@ -4920,6 +4985,13 @@ function removeSeamMember(id, idx){
   pushHist(); s.members.splice(idx,1);
   validateSeams({quiet:true});   // drops the seam (and clears activeSeam) if it's now empty
   renderContent();
+}
+// v5 guide: make member `idx` the TARGET (move it to index 0). Members[0] is the reference edge the
+// rest align to; ordering carries no other meaning, so a plain move is enough.
+function setSeamTarget(id, idx){
+  const s=S.assembly.seams.find(x=>x.id===id); if(!s||idx<=0||idx>=s.members.length) return;
+  pushHist(); const [m]=s.members.splice(idx,1); s.members.unshift(m);
+  validateSeams({quiet:true}); renderContent();
 }
 // Jump to a member edge: select its shape + edge in the Select tool.
 function locateSeamMember(shapeId, edge){
@@ -5511,7 +5583,7 @@ function buildSaveData(){
     shapes:S.shapes.map(s=>clone(s)),
     nextId:S.nextId,
     // v15: seam/assembly metadata (empty in docs authored before seam-tagging). Read-only in the 3D app.
-    assembly:clone(S.assembly||{version:2, seams:[], folds:[]}),
+    assembly:clone(S.assembly||{version:5, seams:[], folds:[]}),
   };
 }
 // Backfill an artboard object's defaults (defensive on load + migration).
@@ -5545,7 +5617,7 @@ function normSeam(s,i){
   const out = {
     id: (typeof s.id==='number'? s.id : i+1),
     name: (s.name!=null ? String(s.name) : 'seam '+(i+1)),
-    type: (['stitch','fold','glue'].includes(s.type) ? s.type : 'stitch'),
+    type: (['stitch','fold','glue','guide'].includes(s.type) ? s.type : 'stitch'),
     order: (typeof s.order==='number' ? s.order : null),
     allowance: (typeof s.allowance==='number' ? s.allowance : null),
     notes: (s.notes!=null ? String(s.notes) : ''),
@@ -5562,10 +5634,13 @@ function normSeam(s,i){
     if(typeof s.stitch.spacing==='number' && s.stitch.spacing>0) out.stitch.spacing = s.stitch.spacing;
     if(typeof s.stitch.margin==='number'  && s.stitch.margin>=0) out.stitch.margin  = s.stitch.margin;
   }
+  // v5 (TODO 4): type 'guide' is a NON-joining alignment annotation — no stitch/fold, never flagged
+  // for length mismatch. Directional: members[0] is the TARGET edge, the rest align to it. The 3D app
+  // reads it as an alignment-only hint (a piece is positioned against the target, not stitched/folded).
   return out;
 }
 function normAssembly(a){
-  if(!a || typeof a!=='object') return {version:4, seams:[], folds:[]};
+  if(!a || typeof a!=='object') return {version:5, seams:[], folds:[]};
   const seams = Array.isArray(a.seams) ? a.seams.map(normSeam).filter(Boolean) : [];
   const folds = Array.isArray(a.folds)
     ? a.folds.filter(f=>f && typeof f.shape==='number' && f.a && f.b)
@@ -5573,7 +5648,7 @@ function normAssembly(a){
           a:{x:+f.a.x||0,y:+f.a.y||0}, b:{x:+f.b.x||0,y:+f.b.y||0},
           angle:(typeof f.angle==='number'?f.angle:0), name:(f.name!=null?String(f.name):'fold '+(i+1))}))
     : [];
-  return {version:Math.max(4, a.version||0), seams, folds};
+  return {version:Math.max(5, a.version||0), seams, folds};
 }
 
 function applyLoadedData(data){

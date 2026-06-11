@@ -268,6 +268,54 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.11 — 2026-06-11
+
+### Edge reference guides (TODO 4) + shared-stitch visual fixes
+
+Two related asks, shipped together. Assembly-schema **v4 → v5** (`.lpd` file v15 unchanged — the
+new `'guide'` is an additive enum value, so older files load fine and full-edge/stitch seams stay
+byte-identical).
+
+**A. Edge reference guides — a directional, non-joining alignment annotation.**
+The reference (`MultiEdge-To-SingleEdge.png`) is a T-pocket: two small tabs whose edges should align
+**to** one long edge of the base. That's not a stitched/folded/glued join — it's pure positioning, so
+Leather Studio 3D has something to align against. Modelled as a new seam **`type:'guide'`** that
+reuses the entire seam pipeline (Seam-tool edge picking, Assembly panel, undo, `validateSeams`) rather
+than a parallel data structure:
+- **Directional:** `members[0]` is the **target/reference** edge; the rest are sources that align to
+  it. The seam editor tags member 0 with a cyan **"target"** chip and gives each other member a
+  **⤒ make-target** button (`setSeamTarget` moves it to index 0). Type dropdown gains
+  *Guide (align only)*; `SEAM_TYPE_BADGE.guide = '⇲'`.
+- **No stitching, no fold, no length flag.** `sharedSeamForEdge`/`edgeStitched` already gate on
+  `type==='stitch'`, so a guide never owns or suppresses stitching — its member edges keep their own
+  independent stitching. `seamLengthIssues` returns `[]` for guides (a short tab vs a long edge is
+  expected, like a partial seam).
+- **Canvas:** target edge drawn solid + heavier, source edges dashed, each with a dashed **direction
+  arrow** pointing at the target. Connectors cross two shapes, so they're built in **world space**
+  (new `worldEdgeMid` = `rotPt` of the local midpoint about the shape's pivot). All `class="seam-aid"`
+  → screen-only, stripped from print + SVG/PNG export.
+
+**B. Shared-stitch ("Stitch as one seam") visual issues** (all three the user flagged):
+1. **No visible run** → a screen-only **running-stitch connector** (`sharedSeamRunsForShape` →
+   `<polyline class="seam-aid">`) threads each shared member's holes in order, so the seam reads as
+   ONE continuous sewn run instead of loose dots.
+2. **Shared edges looked normal** → the always-on connector is itself the cue, so a shared edge is now
+   distinguishable from a plain stitched edge even in the Select tool (the Stitching panel already
+   tagged them).
+3. **Holes misalign/double** → structural **corner-ownership fix in `stitchRect`**: a shared seam now
+   OWNS every corner it touches. The perpendicular independent edge skips its **start hole** when the
+   previous edge is a seam, and skips the **far-corner push** when the next edge is a seam. With equal
+   margins the holes always coincided (the old 0.75 mm dedup hid it); with a *different* edge vs seam
+   margin they landed ~√2·Δmargin apart (≈2.8 mm for a 5 vs 3 mm margin) — a visible double. The fix
+   removes it at the source; equal-margin hole counts are unchanged.
+
+**Tests:** `seam` smoke gains a 3-rect card-holder spine (members coincide; no two holes on a piece
+closer than `spacing*0.6`; mismatched-margin corner has no double under `spacing*0.9`; run connector
+emitted) and a full guide round-trip (type/members survive, `setSeamTarget` reorders, schema v5, no
+length flag). Bumped the `normAssembly` default-version assert 4→5. Full smoke **532/532**.
+
+---
+
 ## v0.8.10 — 2026-06-11
 
 ### Per-edge stitch toggle list (UI/UX pass — discoverability)
