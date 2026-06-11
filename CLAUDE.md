@@ -71,6 +71,11 @@ build** — report it and don't release red.
   session, ship it as-is; otherwise bump the patch and write the DEVLOG/CONTEXT/SHORTCUTS entries.
 - Full per-repo procedure (BUILD_TAG mint, signing env, `gh workflow run release.yml`, etc.) lives in
   the `build-workflow` memory.
+- **The mechanical steps are scripted in `tools/ship.ps1`** (see `tools/README.md`): after writing the
+  DEVLOG entry, `tools\ship.ps1 -Version <x.y.z> -Note "..."` mints the tag, syncs every version
+  string, runs both smokes (hard gate), builds + signs, then commits/pushes/triggers `release.yml`. It
+  auto-derives the package/repo/signing-key, so the same script works in both repos. `-DryRun`
+  (+`-SkipBuild`) stops before any push. Deciding the version + writing the DEVLOG prose stay manual.
 
 ## How the tests work (important constraints)
 
