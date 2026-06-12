@@ -268,6 +268,45 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.13 — 2026-06-12
+
+### Toolbar: Select to the top, Home to the bottom + a Home escape hatch
+
+The toolbar Home button sat at the **extreme top** of the tool column — exactly where every other
+design/CAD tool (Figma, Illustrator, Inkscape) puts the default **Select** arrow. Users reaching for
+Select by muscle memory kept hitting Home instead, dropping them onto the welcome screen.
+
+- **Reordered the tool column:** `tb-select` is now the first button (top-anchored, matching the
+  universal arrow-at-top convention); `tb-rotate`/`tb-artboard` follow. **Home + Help** moved to the
+  **bottom** as the non-drawing "meta" group (`margin-top:auto` now lives on `tb-home`, pinning the pair
+  to the bottom). No id/handler changes beyond order, so tooltips/badges/active-state are untouched.
+- **Home escape hatch:** the welcome overlay had **no way back** to an open document — its only buttons
+  (New / Open) both start a *different* doc, Escape is swallowed (`if(isHomeOpen()) return`), and the
+  backdrop doesn't dismiss. So a stray Home click was a dead end. `showHome(manual)` now takes a flag:
+  the toolbar opens it with `showHome(true)` and the overlay shows a **"← Back to your work"** link
+  (`#home-back`, reusing the `.home-firsttime` style) that calls `hideHome()`. At launch `showHome()` is
+  called with no flag, so the link stays hidden (nothing to go back to).
+
+Smoke: `toolux` asserts Select is the first tool + Home sits below it; `home` asserts the back-escape
+exists, is hidden on a launch open and shown on a manual open. HTML/JS only, no save-format change.
+
+### Pen in-progress preview shows its finished colour (WYSIWYG)
+
+New shapes default to the next preset in the colour cycle (`nextShapeColor`), but while drawing a pen path
+the committed segments rendered in fixed **cyan editor chrome** — so you couldn't tell what colour the
+piece would end up. Now the committed segments preview in the **actual finished colour**: a new
+`peekShapeColor()` returns the next cycle colour **without advancing it** (so a cancelled pen still
+consumes nothing), and `renderPenInProgress` strokes the committed path with that peek (or, when resuming
+an existing path, the path's own kept colour). All the editing chrome — anchor squares, orange handles,
+the dashed rubber-band, magenta ghost, green close ring, cyan resume cue — is unchanged, so the editing
+affordances stay legible; only the committed outline now reads in its true colour.
+
+Smoke: `color` asserts peek returns the next colour, doesn't advance the cycle, and `nextShapeColor`
+still returns it afterwards; `pen-close` asserts the committed preview strokes in the peeked colour, no
+longer uses the old cyan, and rendering doesn't consume the cycle → full **550/550**.
+
+---
+
 ## v0.8.12 — 2026-06-12
 
 ### Visible "Checking for updates…" gate at launch

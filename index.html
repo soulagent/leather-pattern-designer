@@ -488,6 +488,9 @@ body.light .qs-foot{border-top-color:#dde0ea}
 <!-- ── HOME / WELCOME SCREEN ── -->
 <div id="home" class="home-hidden">
   <svg id="home-stitch" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg>
+  <!-- Escape hatch: only shown when Home is opened mid-session (showHome(true)), so a stray Home click
+       isn't a dead end (New/Open both start a different doc). Hidden at launch — there's nothing to go back to. -->
+  <button id="home-back" class="home-firsttime" style="display:none;position:absolute;top:18px;left:22px" onclick="hideHome()">← Back to your work</button>
   <div class="home-card">
     <div class="home-logo">✦ ✦ ✦</div>
     <h1>Welcome to Leather Pattern Designer</h1>
@@ -757,7 +760,7 @@ body.light .qs-foot{border-top-color:#dde0ea}
       <div class="m-act" id="mi-update" onclick="checkForUpdates(true)">Check for Updates…</div>
     </div>
   </div>
-  <div id="app-title">Leather Pattern Designer v0.8.12</div>
+  <div id="app-title">Leather Pattern Designer v0.8.13</div>
   <button id="mb-settings" class="mb-icon-btn" title="Settings" aria-label="Settings" onclick="openSettings()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <div id="theme-toggle" role="button" tabindex="0" title="Toggle light / dark mode"
        onclick="toggleTheme()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTheme();}">
@@ -775,10 +778,9 @@ body.light .qs-foot{border-top-color:#dde0ea}
   <div id="toolbar">
     <!-- Icons are inline SVG (currentColor, one consistent 24-viewBox/18px size) so every tool reads at the
          same visual weight. Tools whose icon isn't already the shortcut letter carry a faint .t-key badge. -->
-    <!-- home / welcome screen -->
-    <button class="t-btn" id="tb-home" data-tip="Home / Welcome" onclick="showHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9h5v-5h4v5h5v-9"/></svg></button>
-    <div class="t-sep"></div>
-    <!-- interaction tools -->
+    <!-- interaction tools — Select is pinned to the very top of the column. Universal CAD/design
+         convention (Figma, Illustrator, Inkscape) puts the default arrow at the top, so muscle memory
+         lands on Select; Home used to sit here and was getting clicked by mistake (now at the bottom). -->
     <button class="t-btn active" id="tb-select" data-tip="Select (V)" onclick="setTool('select')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 2.5l13.2 8.1-5.6 1.2 2.7 5.6-2.4 1.1-2.7-5.6L5 17.5z"/></svg><span class="t-key">V</span></button>
     <button class="t-btn" id="tb-rotate" data-tip="Rotate (R)" onclick="setTool('rotate')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a8 8 0 1 0-2.3 5.9"/><path d="M20 4v5h-5"/></svg><span class="t-key">R</span></button>
     <button class="t-btn" id="tb-artboard" data-tip="Artboard (A)" onclick="setTool('artboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5H6a2 2 0 0 0-2 2v2"/><path d="M16 3.5h2a2 2 0 0 1 2 2v2"/><path d="M20 16v2a2 2 0 0 1-2 2h-2"/><path d="M8 20.5H6a2 2 0 0 1-2-2v-2"/></svg><span class="t-key">A</span></button>
@@ -792,9 +794,11 @@ body.light .qs-foot{border-top-color:#dde0ea}
     <div class="t-sep"></div>
     <!-- assembly -->
     <button class="t-btn" id="tb-seam"   data-tip="Seam (S)" onclick="setTool('seam')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16" stroke-dasharray="3.2 2.4"/><path d="M7 9l-2 6M13 9l-2 6M19 9l-2 6"/></svg><span class="t-key">S</span></button>
-    <!-- help: pinned to the bottom of the toolbar (Delete moved out of the tool column — it's destructive,
-         and already lives in Edit ▸ Delete Selected + the Del key) -->
-    <button class="t-btn" id="tb-help" data-tip="Help (?)" onclick="openHelp()" style="margin-top:auto"><span class="t-ico-letter">?</span></button>
+    <!-- meta actions pinned to the bottom (Home + Help) — neither draws, and keeping them off the top
+         stops Home firing when reaching for Select. showHome(true) marks it a manual (mid-session) open
+         so the welcome screen offers a "Back to your work" escape. Delete stays out (Edit ▸ Delete / Del). -->
+    <button class="t-btn" id="tb-home" data-tip="Home / Welcome" onclick="showHome(true)" style="margin-top:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9h5v-5h4v5h5v-9"/></svg></button>
+    <button class="t-btn" id="tb-help" data-tip="Help (?)" onclick="openHelp()"><span class="t-ico-letter">?</span></button>
   </div>
 
   <!-- CANVAS -->
@@ -1223,8 +1227,8 @@ const PX = 3.7795275591; // px per mm at 96 dpi
 //  - APP_VERSION: the dev / working version number (bumped by hand each session).
 //  - BUILD_TAG:   the packaged-build name = two random words + "-V<n>" (n = build count).
 //    Regenerated and bumped on each /build (ledger: desktop/build-info.json); stays put between builds.
-const APP_VERSION = 'v0.8.12';
-const BUILD_TAG = 'tawny-falcon-V23';
+const APP_VERSION = 'v0.8.13';
+const BUILD_TAG = 'indigo-tern-V24';
 
 // Page presets in PORTRAIT mm (w<h). Landscape swaps w/h. 'Custom' = user dims.
 const PAGE_SIZES = {
@@ -1246,6 +1250,9 @@ const SHAPE_COLORS = ['#3a7bd5','#e74c3c','#27ae60','#e67e22','#9b59b6','#16a085
 // apart without manually recolouring. Session-global (not per-doc / not saved); user can still override.
 let _colorCycle = 0;
 function nextShapeColor(){ return SHAPE_COLORS[(_colorCycle++) % SHAPE_COLORS.length]; }
+// Peek the colour the NEXT shape will get WITHOUT advancing the cycle — lets the pen in-progress
+// preview show its true finished colour (WYSIWYG) while a cancelled pen consumes nothing.
+function peekShapeColor(){ return SHAPE_COLORS[_colorCycle % SHAPE_COLORS.length]; }
 // Stitching-iron sizes offered by the Spacing dropdown (per-shape + Settings default). 'custom' = free entry.
 const SPACING_PRESETS = ['2.7','3','3.38','3.85'];
 
@@ -3495,11 +3502,16 @@ function renderPenInProgress() {
   // When idle (no path yet), hovering an open path's endpoint offers to resume it.
   const resume=(!pts.length && !S.penDown) ? penResumeTarget(S.cursorMM) : null;
 
+  // WYSIWYG: stroke the committed segments in the colour the finished path will actually get — a
+  // non-consuming peek of the cycle for a new path, or the resumed path's own kept colour. The
+  // editing chrome (anchors, handles, dashed rubber-band, ghost, close/resume cues) stays as-is.
+  const previewColor = S.penResume ? (S.penResume.shape.color || peekShapeColor()) : peekShapeColor();
+
   if(pts.length){
-    // ── Completed segments (bright cyan, solid) ──────────────────────────────
+    // ── Committed segments (solid, in the finished-shape colour) ──────────────
     if(pts.length>1){
       const d=pathToD(pts,false);
-      h+=`<path fill="none" stroke="#4dd2ff" stroke-width="${PSW}" d="${d}"/>`;
+      h+=`<path fill="none" stroke="${previewColor}" stroke-width="${PSW}" d="${d}"/>`;
     }
 
     // ── Preview segment: last anchor → candidate (dashed). Closing snaps it to the first anchor. ──
@@ -6258,7 +6270,9 @@ function isQuickStartOpen(){ const b=document.getElementById('qs-bg'); return b 
 function quickStartToHelp(){ closeQuickStart(); openHelp(); } // "Open full Help →" link
 
 function isHomeOpen(){ const h=document.getElementById('home'); return h && !h.classList.contains('home-hidden'); }
-function showHome(){ renderHomeStitch(); renderHomeRecovery(); renderHomeRecents(); renderHomeVersion(); const h=document.getElementById('home'); if(h) h.classList.remove('home-hidden'); }
+// manual=true means opened mid-session from the toolbar (vs the launch welcome) — show the
+// "Back to your work" escape so the click is recoverable; at launch there's nothing to go back to.
+function showHome(manual){ renderHomeStitch(); renderHomeRecovery(); renderHomeRecents(); renderHomeVersion(); const back=document.getElementById('home-back'); if(back) back.style.display = manual ? '' : 'none'; const h=document.getElementById('home'); if(h) h.classList.remove('home-hidden'); }
 // Stamp the dev (working) version + packaged-build tag into the welcome-screen corner.
 function renderHomeVersion(){
   const d=document.getElementById('home-ver-dev'), b=document.getElementById('home-ver-build');

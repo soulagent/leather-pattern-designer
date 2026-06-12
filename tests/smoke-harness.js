@@ -173,6 +173,11 @@ window.__SMOKE__ = function (spec) {
       assert('colour: cycle advances to preset[1]', nextShapeColor() === SHAPE_COLORS[1], 'advance');
       _colorCycle = SHAPE_COLORS.length - 1; nextShapeColor();
       assert('colour: cycle wraps back to preset[0]', nextShapeColor() === SHAPE_COLORS[0], 'wrap');
+      // peek shows the next colour WITHOUT consuming it (pen WYSIWYG preview); next still returns it
+      _colorCycle = 0;
+      assert('colour: peek returns the next colour', peekShapeColor() === SHAPE_COLORS[0], `got ${peekShapeColor()}`);
+      assert('colour: peek does not advance the cycle', _colorCycle === 0, `cycle=${_colorCycle}`);
+      assert('colour: next after peek returns the peeked colour', nextShapeColor() === SHAPE_COLORS[0] && _colorCycle === 1, 'mismatch');
       _colorCycle = 0;
       const r = { type: 'rect', x: 0, y: 0, w: 50, h: 50 }; addShape(r);
       assert('colour: addShape assigns the cycling default', r.color === SHAPE_COLORS[0], `got ${r.color}`);
@@ -284,6 +289,11 @@ window.__SMOKE__ = function (spec) {
       assert('toolbar: tools use inline svg icons', document.querySelectorAll('#toolbar .t-btn svg').length >= 6, 'too few svg icons');
       // #5 shortcut key badges
       assert('toolbar: shortcut key badges present', document.querySelectorAll('#toolbar .t-key').length === 6, `keys=${document.querySelectorAll('#toolbar .t-key').length}`);
+      // Select sits at the very top of the column (default-arrow convention); Home was moved below it
+      // so it's no longer fired by a stray reach for Select.
+      const tbIds = [...document.querySelectorAll('#toolbar .t-btn')].map(b => b.id);
+      assert('toolbar: Select is the first tool', tbIds[0] === 'tb-select', tbIds.join(','));
+      assert('toolbar: Home sits below Select', tbIds.indexOf('tb-home') > tbIds.indexOf('tb-select'), tbIds.join(','));
       // #6 empty-canvas prompt
       S.shapes = [];
       updateCanvasEmpty();
@@ -518,6 +528,14 @@ window.__SMOKE__ = function (spec) {
       assert('render: close cue shown near first anchor', /pen-close-cue/.test(renderPenInProgress()), 'no cue');
       S.cursorMM = { x: 30, y: 30 };
       assert('render: no close cue when away', !/pen-close-cue/.test(renderPenInProgress()), 'cue leaked');
+
+      // WYSIWYG: committed segments preview in the finished-shape colour (peek), not the old cyan chrome,
+      // and rendering the preview must NOT consume the colour cycle.
+      S.penResume = null; _colorCycle = 0;
+      const penPrev = renderPenInProgress();
+      assert('pen: committed preview uses the finished-shape colour', penPrev.includes(`stroke="${peekShapeColor()}"`), 'no tinted committed stroke');
+      assert('pen: preview no longer uses the old cyan chrome stroke', !penPrev.includes('#4dd2ff'), 'cyan leaked');
+      assert('pen: rendering the preview does not consume the cycle', _colorCycle === 0, `cycle=${_colorCycle}`);
 
       // clicking in closing range finishes a CLOSED path
       reset();
@@ -1127,6 +1145,12 @@ window.__SMOKE__ = function (spec) {
       assert('home: stitch border drawn (many slits)', document.querySelectorAll('#home-stitch rect').length > 20, `${document.querySelectorAll('#home-stitch rect').length}`);
       assert('home: New + Open buttons present', /New File/.test(el.innerHTML) && /Open File/.test(el.innerHTML), 'buttons missing');
       assert('home: toolbar Home button present', !!document.getElementById('tb-home'), 'no #tb-home');
+      // "Back to your work" escape: hidden at launch (showHome()), shown on a mid-session open (showHome(true))
+      const back = document.getElementById('home-back');
+      assert('home: back-to-work escape exists', !!back, 'no #home-back');
+      assert('home: back escape hidden on launch open', back.style.display === 'none', back.style.display);
+      showHome(true);
+      assert('home: back escape shown on manual open', back.style.display !== 'none', back.style.display);
       hideHome();
       assert('home: hideHome hides it', el.classList.contains('home-hidden'), el.className);
 
