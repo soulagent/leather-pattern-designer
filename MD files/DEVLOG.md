@@ -268,6 +268,32 @@ running until Phase 7 so both implementations are checked against the same inten
 
 ---
 
+## v0.8.12 — 2026-06-12
+
+### Visible "Checking for updates…" gate at launch
+
+The desktop launch update check was **silent** (`setTimeout(()=>checkForUpdates(false), 1500)` after the
+welcome screen — only an available update ever surfaced). Now it's a **visible gate**: on desktop start
+a centred **"Checking for updates…" card on a dimmed backdrop with an animated spinner** (`#upd-splash`)
+shows while the updater is queried, then auto-dismisses; only an actual update still prompts.
+
+- New `#upd-splash` overlay (dimmed backdrop + `.upd-card` + a CSS `@keyframes upd-spin` ring spinner),
+  themed from the design tokens, `z-index` above the home/dialog overlays, hidden in print, and
+  **`prefers-reduced-motion` stops the spin** (clears an open a11y carry-forward for this element).
+- Refactored the install flow into **`promptAndInstall(update)`** (confirm → `downloadAndInstall` with %
+  progress → `relaunch`), shared by the manual menu check and the launch gate — one source of truth.
+- New **`launchUpdateCheck()`**: `showUpdSplash()` → `Promise.race([up.check(), 8s timeout])` (offline/
+  slow/error never traps the user) → min ~600ms display so a fast check doesn't flicker → `hideUpdSplash()`
+  → `promptAndInstall` only if there's an update. **No-op in a plain browser** (no `__TAURI__.updater`),
+  so the standalone HTML build launches straight through.
+- Init now calls `launchUpdateCheck()` in place of the silent timer.
+
+Smoke: new `updatecheck` feature (splash exists/hidden, show/hide toggles, spinner present, launch-gate
+no-op in browser) → full **539/539**; build smoke now asserts the visible gate → **65/65**. Mirrored in
+Leather Studio 3D v0.0.16.
+
+---
+
 ## v0.8.11 — 2026-06-11
 
 ### Edge reference guides (TODO 4) + shared-stitch visual fixes

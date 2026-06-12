@@ -112,7 +112,8 @@ Assert 'index.html: Check for Updates menu' ($html -match 'id="mi-update"') 'men
 Assert 'index.html: uses updater global'    ($html -match '__TAURI__\.updater') 'never reads the updater API'
 Assert 'index.html: downloadAndInstall'     ($html -match 'downloadAndInstall\(') 'never installs the update'
 Assert 'index.html: relaunch after update'  ($html -match 'relaunch\(') 'never relaunches'
-Assert 'index.html: silent update check on launch' ($html -match 'setTimeout\(\(\)=>checkForUpdates\(false\)') 'no on-launch auto-check'
+Assert 'index.html: visible update gate on launch' ($html -match 'launchUpdateCheck\(\)') 'no on-launch update gate'
+Assert 'index.html: launch gate defines launchUpdateCheck' ($html -match 'function launchUpdateCheck') 'launchUpdateCheck not defined'
 
 # ---- 7. version sync -----------------------------------------------
 # APP_VERSION (dev), Cargo.toml, and tauri.conf move together (the version-bump checklist bumps

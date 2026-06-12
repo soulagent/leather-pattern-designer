@@ -1,8 +1,8 @@
 {
   "_comment": "Build ledger for the packaged desktop exe. APP_VERSION (dev/working number) lives in index.html; each /build mints a new buildTag = two random words + -V<buildCount> and appends it to history. On the next /build: increment buildCount, generate two fresh random words, set buildTag, update BUILD_TAG in index.html, then cargo tauri build.",
-  "devVersion": "0.8.11",
-  "buildCount": 22,
-  "buildTag": "verdant-shrike-V22",
+  "devVersion": "0.8.12",
+  "buildCount": 23,
+  "buildTag": "tawny-falcon-V23",
   "history": [
     { "v": 1, "tag": "slate-heron-V1", "dev": "0.6.2", "date": "2026-06-03" },
     { "v": 2, "tag": "copper-marten-V2", "dev": "0.6.2", "date": "2026-06-03" },
@@ -25,6 +25,7 @@
     { "v": 19, "tag": "russet-plover-V19", "dev": "0.8.8", "date": "2026-06-09", "note": "mm partial seams (assembly-schema v4): offset+reference-end authoring, auto length = mating edge, true-mm canvas band; paired with 3D v0.0.11" },
     { "v": 20, "tag": "juniper-kestrel-V20", "dev": "0.8.9", "date": "2026-06-10", "note": "shared-seam end holes one-per-corner: run end holes inset by the margin along the edge (N from inset run) + stitchFor 0.75mm corner dedupe; paired with 3D v0.0.13. Also: dead-code cleanup, .lnk untracked, STYLE_GUIDE re-derived to v0.8.8" },
     { "v": 21, "tag": "slate-quail-V21", "dev": "0.8.10", "date": "2026-06-11", "note": "UI/UX pass (all 9 audit items + colour-cycling): per-edge stitch toggle list, empty-state invitation, per-tool status hints, unified toolbar SVG icons + Delete removed, shortcut key badges, empty-canvas french-stitch prompt + centred entry view, status-bar hierarchy, Settings menubar gear, Assembly→3D pointer; new shapes cycle the preset palette" },
-    { "v": 22, "tag": "verdant-shrike-V22", "dev": "0.8.11", "date": "2026-06-11", "note": "edge reference guides (assembly-schema v5): seam type:'guide' directional alignment annotation (target + ⤒ make-target, dashed direction arrows); shared-stitch visual fixes (screen-only run connector + stitchRect corner-ownership no-double); paired with 3D v0.0.15 guide consumption" }
+    { "v": 22, "tag": "verdant-shrike-V22", "dev": "0.8.11", "date": "2026-06-11", "note": "edge reference guides (assembly-schema v5): seam type:'guide' directional alignment annotation (target + ⤒ make-target, dashed direction arrows); shared-stitch visual fixes (screen-only run connector + stitchRect corner-ownership no-double); paired with 3D v0.0.15 guide consumption" },
+    { "v": 23, "tag": "tawny-falcon-V23", "dev": "0.8.12", "date": "2026-06-12", "note": "visible 'Checking for updates...' launch gate (#upd-splash)" }
   ]
 }

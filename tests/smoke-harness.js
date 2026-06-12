@@ -1183,6 +1183,24 @@ window.__SMOKE__ = function (spec) {
       assert('help: closeHelp closes it', !isHelpOpen(), el.className);
     },
 
+    // Launch update-check gate (the visible "Checking for updates…" splash). The live updater is
+    // desktop-only; here we verify the splash element + show/hide helpers + that launchUpdateCheck is
+    // a safe no-op in a plain browser (no window.__TAURI__.updater).
+    updatecheck() {
+      const sp = document.getElementById('upd-splash');
+      assert('update: splash element exists', !!sp, 'no #upd-splash');
+      assert('update: splash hidden by default', !sp.classList.contains('open'), sp.className);
+      assert('update: spinner present', !!sp.querySelector('.upd-spinner'), 'no .upd-spinner');
+      showUpdSplash();
+      assert('update: showUpdSplash opens it', sp.classList.contains('open'));
+      hideUpdSplash();
+      assert('update: hideUpdSplash closes it', !sp.classList.contains('open'));
+      let threw = false;
+      try { launchUpdateCheck(); } catch (e) { threw = true; }
+      assert('update: launchUpdateCheck no-op in browser (no throw)', !threw);
+      assert('update: launchUpdateCheck leaves splash closed in browser', !sp.classList.contains('open'));
+    },
+
     // ── Quick Start (FTUE) overlay, opened from the welcome screen ──
     quickstart() {
       const el = document.getElementById('qs-bg');
@@ -1881,7 +1899,7 @@ window.__SMOKE__ = function (spec) {
 
   // Tier → ordered feature list. quick = fast logic; full = everything.
   const ORDER = ['core', 'history', 'saveload', 'page', 'color', 'snap',
-    'stitch-rect', 'peredge', 'stitch-circle', 'stitch-path', 'stitch-convert', 'stitch-acute', 'stitch-radii', 'anchor-type', 'pen-grid', 'pen-anchor', 'pen-close', 'pen-resume', 'path-handles', 'label-fit', 'multiselect', 'duplicate', 'emptystate', 'toolux', 'stitch-inputs', 'layers', 'layer-groups', 'text', 'home', 'help', 'quickstart', 'artboards', 'tabs', 'rotate', 'stitch-guard', 'seam', 'bbox', 'a11y', 'readability'];
+    'stitch-rect', 'peredge', 'stitch-circle', 'stitch-path', 'stitch-convert', 'stitch-acute', 'stitch-radii', 'anchor-type', 'pen-grid', 'pen-anchor', 'pen-close', 'pen-resume', 'path-handles', 'label-fit', 'multiselect', 'duplicate', 'emptystate', 'toolux', 'stitch-inputs', 'layers', 'layer-groups', 'text', 'home', 'help', 'quickstart', 'updatecheck', 'artboards', 'tabs', 'rotate', 'stitch-guard', 'seam', 'bbox', 'a11y', 'readability'];
   const TIERS = { quick: ['core', 'history'], full: ORDER };
 
   // Resolve the spec into a list of feature names.
